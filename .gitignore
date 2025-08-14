@@ -48,3 +48,5 @@ IndoBERT_model/
 *.xlsx
 *.xls
 *.parquet
+
+gitconfig.sh
