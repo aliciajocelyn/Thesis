@@ -41,8 +41,8 @@ def prepare_dataset(df_modeling):
     df_pos['cleaned_text'] = df_pos['cleaned_text'].apply(clean_text, negation=False)
     df_neg['cleaned_text'] = df_neg['cleaned_text'].apply(clean_text, negation=True)
 
-    df_pos['processed_text'] = df_pos['cleaned_text'].apply(text_preprocessing)
-    df_neg['processed_text'] = df_neg['cleaned_text'].apply(text_preprocessing)
+    df_pos['processed_text'] = df_pos['cleaned_text'].apply(text_preprocessing_topic)
+    df_neg['processed_text'] = df_neg['cleaned_text'].apply(text_preprocessing_topic)
 
     text_pos = df_pos['processed_text'].astype(str).tolist()
     text_neg = df_neg['processed_text'].astype(str).tolist()

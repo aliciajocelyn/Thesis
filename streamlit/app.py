@@ -45,34 +45,51 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 @st.cache_resource
 def load_model():
     logger.info("Loading models...")
-    base_path = Path(__file__).parent / "src" / "models"
+    base_path = Path(__file__).parent.parent / "src" / "models"
 
-#     # INDOBERT
+    # INDOBERT
     indobert_model_path = os.path.abspath(base_path / "indobert_model")
     tokenizer_path = os.path.abspath(base_path / "indobert_tokenizer")
+    logger.info(f"IndoBERT model path: {indobert_model_path} - Exists: {os.path.isdir(indobert_model_path)}")
+    logger.info(f"Tokenizer path: {tokenizer_path} - Exists: {os.path.isdir(tokenizer_path)}")
 
-    indobert_model = AutoModelForSequenceClassification.from_pretrained(
-        str(indobert_model_path), local_files_only=True, trust_remote_code=True
-    )
-    tokenizer = AutoTokenizer.from_pretrained(
-        str(tokenizer_path), local_files_only=True
-    )
+    try:
+        indobert_model = AutoModelForSequenceClassification.from_pretrained(
+            str(indobert_model_path), local_files_only=True, trust_remote_code=True
+        )
+        tokenizer = AutoTokenizer.from_pretrained(
+            str(tokenizer_path), local_files_only=True
+        )
+    except Exception as e:
+        logger.error(f"Failed to load IndoBERT or tokenizer: {e}")
+        raise ValueError(f"IndoBERT model/tokenizer path invalid: {indobert_model_path} or {tokenizer_path}")
 
     # BERTopic
-    embedding_positive = "indobenchmark/indobert-base-p1"
-    embedding_negative = "indobenchmark/indobert-base-p1"
     bertopic_positive_model_path = os.path.abspath(base_path / "bertopic" / "best_positive_model")
     bertopic_negative_model_path = os.path.abspath(base_path / "bertopic" / "best_negative_model")
+    logger.info(f"BERTopic positive path: {bertopic_positive_model_path} - Exists: {os.path.isdir(bertopic_positive_model_path)}")
+    logger.info(f"BERTopic negative path: {bertopic_negative_model_path} - Exists: {os.path.isdir(bertopic_negative_model_path)}")
 
     def safe_load_sentence_transformer(model_name):
-        base_model = AutoModel.from_pretrained(model_name, use_safetensors=True)
-        return SentenceTransformer(modules=[base_model])
+        try:
+            return SentenceTransformer(model_name)
+        except Exception as e:
+            logger.error(f"Failed to load sentence transformer {model_name}: {e}")
+            raise
 
-    embedding_model_positive = safe_load_sentence_transformer(embedding_positive)
-    embedding_model_negative = safe_load_sentence_transformer(embedding_negative)
+    try:
+        embedding_model_positive = safe_load_sentence_transformer("indobenchmark/indobert-base-p1")
+        embedding_model_negative = safe_load_sentence_transformer("indobenchmark/indobert-base-p1")
+    except Exception as e:
+        logger.error(f"Failed to load embedding models: {e}")
+        raise
 
-    bertopic_model_positive = BERTopic.load(bertopic_positive_model_path, embedding_model=embedding_model_positive)
-    bertopic_model_negative = BERTopic.load(bertopic_negative_model_path, embedding_model=embedding_model_negative)
+    try:
+        bertopic_model_positive = BERTopic.load(bertopic_positive_model_path, embedding_model=embedding_model_positive)
+        bertopic_model_negative = BERTopic.load(bertopic_negative_model_path, embedding_model=embedding_model_negative)
+    except Exception as e:
+        logger.error(f"Failed to load BERTopic models: {e}")
+        raise ValueError(f"BERTopic model path invalid: {bertopic_positive_model_path} or {bertopic_negative_model_path}")
 
     logger.info("Models loaded successfully.")
     return indobert_model, tokenizer, bertopic_model_positive, bertopic_model_negative
