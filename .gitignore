@@ -7,6 +7,9 @@ __pycache__/
 *.pickle
 *.joblib
 *.h5
+*.log
+*.yaml
+*.yml
 
 # Virtual environment folders
 .env

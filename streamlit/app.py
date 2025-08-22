@@ -1,3 +1,8 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from pathlib import Path
 import os
 import logging
@@ -5,14 +10,15 @@ from datetime import datetime
 import streamlit as st
 import pandas as pd
 
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification
 from bertopic import BERTopic
-
-from utils.sentiment_prediction import predict_sentiment
-from utils.topic_prediction import prepare_dataset, predict_topics
+from sentence_transformers import SentenceTransformer
 
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+
+from utils.sentiment_prediction import *
+from utils.topic_prediction import *
 
 # ======================
 # LOGGING CONFIGURATION
@@ -40,10 +46,10 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 def load_model():
     logger.info("Loading models...")
     base_path = Path(__file__).parent / "src" / "models"
-    indobert_model_path = base_path / "indobert_model"
-    tokenizer_path = base_path / "indobert_tokenizer"
-    bertopic_positive_model_path = base_path / "bertopic" / "best_positive_model"
-    bertopic_negative_model_path = base_path / "bertopic" / "best_negative_model"
+
+#     # INDOBERT
+    indobert_model_path = os.path.abspath(base_path / "indobert_model")
+    tokenizer_path = os.path.abspath(base_path / "indobert_tokenizer")
 
     indobert_model = AutoModelForSequenceClassification.from_pretrained(
         str(indobert_model_path), local_files_only=True, trust_remote_code=True
@@ -52,8 +58,21 @@ def load_model():
         str(tokenizer_path), local_files_only=True
     )
 
-    bertopic_model_positive = BERTopic.load(bertopic_positive_model_path)
-    bertopic_model_negative = BERTopic.load(bertopic_negative_model_path)
+    # BERTopic
+    embedding_positive = "indobenchmark/indobert-base-p1"
+    embedding_negative = "indobenchmark/indobert-base-p1"
+    bertopic_positive_model_path = os.path.abspath(base_path / "bertopic" / "best_positive_model")
+    bertopic_negative_model_path = os.path.abspath(base_path / "bertopic" / "best_negative_model")
+
+    def safe_load_sentence_transformer(model_name):
+        base_model = AutoModel.from_pretrained(model_name, use_safetensors=True)
+        return SentenceTransformer(modules=[base_model])
+
+    embedding_model_positive = safe_load_sentence_transformer(embedding_positive)
+    embedding_model_negative = safe_load_sentence_transformer(embedding_negative)
+
+    bertopic_model_positive = BERTopic.load(bertopic_positive_model_path, embedding_model=embedding_model_positive)
+    bertopic_model_negative = BERTopic.load(bertopic_negative_model_path, embedding_model=embedding_model_negative)
 
     logger.info("Models loaded successfully.")
     return indobert_model, tokenizer, bertopic_model_positive, bertopic_model_negative
@@ -102,8 +121,8 @@ with tab1:
             if st.button("🔍 Run Sentiment Prediction"):
                 with st.spinner("Predicting sentiment..."):
                     try:
-                        sample_df = df.sample(n=min(10, len(df)), random_state=42)
-                        df_labeled = predict_sentiment(sample_df, indobert_model, tokenizer)
+                        # sample_df = df.sample(n=min(10, len(df)), random_state=42)
+                        df_labeled = predict_sentiment(df, indobert_model, tokenizer)
                         st.session_state.df_labeled = df_labeled
                         logger.info("Sentiment prediction completed.")
                         st.success("✅ Sentiment prediction complete! Go to **Tab 2** to view results.")
@@ -115,14 +134,18 @@ with tab1:
                 with st.spinner("Running topic modeling..."):
                     try:
                         texts_pos, texts_neg = prepare_dataset(st.session_state.df_labeled)
-
+                        
                         df_pred_positive = predict_topics(
-                            texts=texts_pos, df=st.session_state.df_labeled,
-                            model=bertopic_model_positive, sentiment_label=1
+                            texts=texts_pos, 
+                            df=st.session_state.df_labeled,
+                            model=bertopic_model_positive, 
+                            sentiment_label=1
                         )
                         df_pred_negative = predict_topics(
-                            texts=texts_neg, df=st.session_state.df_labeled,
-                            model=bertopic_model_negative, sentiment_label=0
+                            texts=texts_neg, 
+                            df=st.session_state.df_labeled,
+                            model=bertopic_model_negative, 
+                            sentiment_label=0
                         )
 
                         st.session_state.df_pred_positive = df_pred_positive
@@ -146,14 +169,21 @@ with tab2:
         sentiment_counts = df_labeled["sentiment"].value_counts(normalize=True) * 100
         st.bar_chart(sentiment_counts)
 
+        df_positive = df_labeled[df_labeled["sentiment"] == 'positive']
+        df_negative = df_labeled[df_labeled["sentiment"] == 'negative']
+
         col1, col2 = st.columns(2)
         with col1:
-            pos_fig = generate_wordcloud(df_labeled[df_labeled["sentiment"] == 1]["text"], "Positive Reviews Word Cloud")
+            df_positive['cleaned_text'] = df_positive['text'].apply(lambda x: clean_text(x, negation=False))
+            df_positive['processed_text'] = df_positive['cleaned_text'].apply(lambda x: text_preprocessing_sentiment(x, method='sastrawi'))
+            pos_fig = generate_wordcloud(df_positive["processed_text"], "Positive Reviews Word Cloud")
             if pos_fig: st.pyplot(pos_fig)
             else: st.info("No positive reviews found.")
 
         with col2:
-            neg_fig = generate_wordcloud(df_labeled[df_labeled["sentiment"] == 0]["text"], "Negative Reviews Word Cloud")
+            df_negative['cleaned_text'] = df_negative['text'].apply(lambda x: clean_text(x, negation=False))
+            df_negative['processed_text'] = df_negative['cleaned_text'].apply(lambda x: text_preprocessing_sentiment(x, method='sastrawi'))
+            neg_fig = generate_wordcloud(df_negative["processed_text"], "Negative Reviews Word Cloud")
             if neg_fig: st.pyplot(neg_fig)
             else: st.info("No negative reviews found.")
     else:

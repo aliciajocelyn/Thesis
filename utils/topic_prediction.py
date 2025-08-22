@@ -1,12 +1,12 @@
 import re
-
-import nlp_id
 from nlp_id.lemmatizer import Lemmatizer
 from nlp_id.tokenizer import Tokenizer
 from nlp_id.stopword import StopWord
 
-
 from src.dictionary.exclude_words import exclude_stopwords
+
+stopword = StopWord()
+tokenizer = Tokenizer()
 
 def clean_text(text, negation=True):
     if negation:
@@ -19,10 +19,7 @@ def clean_text(text, negation=True):
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
-def text_preprocessing(text):
-    stopword = StopWord()
-    tokenizer = Tokenizer()
-
+def text_preprocessing_topic(text):
     # Menambahkan kata untuk stop words
     stop_words = stopword.get_stopword()
     stop_words.append(exclude_stopwords)
@@ -37,6 +34,7 @@ def text_preprocessing(text):
     return processed_text
 
 def prepare_dataset(df_modeling):
+    df_modeling['sentiment'] = df_modeling['sentiment'].map({'positive': 1, 'negative': 0})
     df_pos = df_modeling[df_modeling['sentiment'] == 1].copy()
     df_neg = df_modeling[df_modeling['sentiment'] == 0].copy()
 
