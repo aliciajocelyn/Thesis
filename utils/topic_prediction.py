@@ -34,7 +34,7 @@ def text_preprocessing_topic(text):
     return processed_text
 
 def prepare_dataset(df_modeling):
-    df_modeling['sentiment'] = df_modeling['sentiment'].map({'positive': 1, 'negative': 0})
+    df_modeling['sentiment'] = df_modeling['sentiment'].map({'negative': 0, 'positive': 1})
     df_pos = df_modeling[df_modeling['sentiment'] == 1].copy()
     df_neg = df_modeling[df_modeling['sentiment'] == 0].copy()
 
