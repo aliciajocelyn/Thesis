@@ -62,7 +62,11 @@ def text_preprocessing_sentiment(text, method):
     if method == 'nlp_id':
         # Menambahkan kata untuk stop words
         tokens = tokenizer.tokenize(text)
-        filtered_tokens = [word for word in tokens if word not in nlp_stop_words or word in exclude_stopwords]
+        filtered_tokens = [
+            word for word in tokens 
+            if (word not in nlp_stop_words or word in exclude_stopwords) and word != "tidak"
+        ]
+
 
         text = re.sub(r'\s+', ' ', text).strip()
 
@@ -74,7 +78,10 @@ def text_preprocessing_sentiment(text, method):
         tokens = text.lower().split()
 
         # Filter stopword
-        filtered_tokens = [word for word in tokens if word not in sastrawi_stop_words or word in exclude_stopwords]
+        filtered_tokens = [
+            word for word in tokens 
+            if (word not in sastrawi_stop_words or word in exclude_stopwords) and word != "tidak"
+        ]
 
         # Gabung kembali & rapikan spasi
         cleaned_text = re.sub(r'\s+', ' ', ' '.join(filtered_tokens)).strip()
