@@ -66,9 +66,9 @@ def load_model():
         raise ValueError(f"IndoBERT model/tokenizer path invalid: {indobert_model_path} or {tokenizer_path}")
 
     # BERTopic
-    bertopic_positive_model_path = os.path.abspath(base_path / "final_bertopic" / "positive" / "best_positive_model_top3") 
+    bertopic_positive_model_path = os.path.abspath(base_path / "final_bertopic" / "positive" / "best_positive_model_top2") 
     bertopic_negative_model_path = os.path.abspath(base_path / "final_bertopic" / "negative" / "best_negative_model_top2")
-    positive_embedding_model_path = os.path.abspath(base_path / "final_bertopic" / "positive" /  "embeddings_top3")
+    positive_embedding_model_path = os.path.abspath(base_path / "final_bertopic" / "positive" /  "embeddings_top2")
     negative_embedding_model_path = os.path.abspath(base_path / "final_bertopic" / "negative" / "embeddings_top2")
     logger.info(f"BERTopic positive path: {bertopic_positive_model_path} - Exists: {os.path.isdir(bertopic_positive_model_path)}")
     logger.info(f"BERTopic negative path: {bertopic_negative_model_path} - Exists: {os.path.isdir(bertopic_negative_model_path)}")
@@ -185,9 +185,41 @@ with tab2:
     st.header("Sentiment Distribution")
     if st.session_state.df_labeled is not None:
         df_labeled = st.session_state.df_labeled
+        # df_labeled['sentiment'] = df_labeled['sentiment'].map({1: 'positive', 0: 'negative'})
         st.write(df_labeled.head(10))
-        sentiment_counts = df_labeled["sentiment"].value_counts(normalize=True) * 100
-        st.bar_chart(sentiment_counts)
+        sentiment_counts = df_labeled["sentiment"].value_counts(normalize=True)*100
+        
+        # Create a container to control chart width
+        col1, col2, col3 = st.columns([1, 2, 1])  # This creates a centered chart taking 2/4 of the width
+        
+        with col2:
+            # Create a custom bar chart with matplotlib
+            fig, ax = plt.subplots(figsize=(6, 5))  # Reduced figure size since it's in a smaller container
+            
+            # Define colors for sentiments
+            colors = {'positive': '#91DA73', 'negative': '#FF4747'}  # Green for positive, red for negative
+            
+            # Create the bar chart
+            bars = ax.bar(sentiment_counts.index, sentiment_counts.values, 
+                         color=[colors[sentiment] for sentiment in sentiment_counts.index])
+            
+            # Add percentage labels on top of bars
+            for bar, value in zip(bars, sentiment_counts.values):
+                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, 
+                       f'{value:.2f}%', ha='center', va='bottom', fontsize=12, fontweight='bold')
+            
+            # Customize the chart
+            ax.set_ylim(0, 100) 
+            ax.set_ylabel('Proportion', fontsize=12)
+            ax.set_xlabel('Sentiment', fontsize=12)
+            ax.set_title('Sentiment Distribution', fontsize=14, fontweight='bold')
+            
+            # Make x-axis labels horizontal and larger
+            ax.tick_params(axis='x', labelsize=14, rotation=0)
+            ax.tick_params(axis='y', labelsize=10)
+            
+            plt.tight_layout()
+            st.pyplot(fig)
 
         df_positive = df_labeled[df_labeled["sentiment"] == 'positive']
         df_negative = df_labeled[df_labeled["sentiment"] == 'negative']
