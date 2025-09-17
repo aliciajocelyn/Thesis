@@ -247,28 +247,28 @@ with tab3:
         st.subheader("💬 Positive Sentiment Topics")
         topic_counts_pos = st.session_state.df_pred_positive['topic_name'].value_counts()
         pos_data = topic_counts_pos.reset_index()
-        pos_data.columns = ['topic_name', 'count']
+        pos_data.columns = ['Topic Name', 'Count']
         pos_chart = alt.Chart(pos_data).mark_bar().encode(
-            x=alt.X('topic_name:N', axis=alt.Axis(
+            x=alt.X('Topic Name:N', axis=alt.Axis(
                 labelAngle=0,          
                 labelFontSize=20,      
                 labelLimit=0,          
                 labelOverlap=False,    
                 titleFontSize=18
             )),
-            y='count:Q'
+            y='Count:Q'
         ).properties(
             width=600,
             height=400
         )
         st.altair_chart(pos_chart, use_container_width=True)
 
-        selected_topic_pos = st.selectbox("Select a Positive Topic", options=topic_counts_pos.index)
-        selected_texts_pos = st.session_state.df_pred_positive[st.session_state.df_pred_positive['topic_name'] == selected_topic_pos]['text']
-        processed_texts_pos = selected_texts_pos.apply(lambda x: text_preprocessing_topic(clean_text(x, negation=False)))
-        
         col1, col2, col3 = st.columns([1, 2, 1]) 
         with col2:
+            selected_topic_pos = st.selectbox("Select a Positive Topic", options=topic_counts_pos.index)
+            selected_texts_pos = st.session_state.df_pred_positive[st.session_state.df_pred_positive['topic_name'] == selected_topic_pos]['text']
+            processed_texts_pos = selected_texts_pos.apply(lambda x: text_preprocessing_topic(clean_text(x, negation=False)))
+        
             fig_pos = generate_wordcloud(
                 processed_texts_pos,
                 f"Word Cloud for Positive Topic: {selected_topic_pos}"
@@ -281,28 +281,27 @@ with tab3:
         st.subheader("💬 Negative Sentiment Topics")
         topic_counts_neg = st.session_state.df_pred_negative['topic_name'].value_counts()
         neg_data = topic_counts_neg.reset_index()
-        neg_data.columns = ['topic_name', 'count']
+        neg_data.columns = ['Topic Name', 'Count']
         neg_chart = alt.Chart(neg_data).mark_bar().encode(
-            x=alt.X('topic_name:N', axis=alt.Axis(
+            x=alt.X('Topic Name:N', axis=alt.Axis(
                 labelAngle=0,          
                 labelFontSize=20,      
                 labelLimit=0,          
                 labelOverlap=False,    
                 titleFontSize=18
             )),
-            y='count:Q'
+            y='Count:Q'
         ).properties(
             width=600,
             height=400
         )
         st.altair_chart(neg_chart, use_container_width=True)
-
-        selected_topic_neg = st.selectbox("Select a Negative Topic", options=topic_counts_neg.index)
-        selected_texts_neg = st.session_state.df_pred_negative[st.session_state.df_pred_negative['topic_name'] == selected_topic_neg]['text']
-        processed_texts_neg = selected_texts_neg.apply(lambda x: text_preprocessing_topic(clean_text(x, negation=True)))
         
         col1, col2, col3 = st.columns([1, 2, 1])  
         with col2:
+            selected_topic_neg = st.selectbox("Select a Negative Topic", options=topic_counts_neg.index)
+            selected_texts_neg = st.session_state.df_pred_negative[st.session_state.df_pred_negative['topic_name'] == selected_topic_neg]['text']
+            processed_texts_neg = selected_texts_neg.apply(lambda x: text_preprocessing_topic(clean_text(x, negation=True)))
             fig_neg = generate_wordcloud(
                 processed_texts_neg,    
                 f"Word Cloud for Negative Topic: {selected_topic_neg}"
