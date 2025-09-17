@@ -180,7 +180,10 @@ with tab2:
     st.header("Sentiment Distribution")
     if st.session_state.df_labeled is not None:
         df_labeled = st.session_state.df_labeled
-        # df_labeled['sentiment'] = df_labeled['sentiment'].map({1: 'positive', 0: 'negative'})
+        
+        if set(df_labeled['sentiment'].unique()).issubset({0, 1}):
+            df_labeled['sentiment'] = df_labeled['sentiment'].map({1: 'positive', 0: 'negative'})
+        
         st.write(df_labeled.head(10))
         sentiment_counts = df_labeled["sentiment"].value_counts(normalize=True)*100
         
@@ -192,7 +195,7 @@ with tab2:
             fig, ax = plt.subplots(figsize=(6, 5))  # Reduced figure size since it's in a smaller container
             
             # Define colors for sentiments
-            colors = {0: '#91DA73', 1: '#FF4747',  'positive': '#91DA73', 'negative': '#FF4747'}  # Green for positive, red for negative
+            colors = {'positive': '#91DA73', 'negative': '#FF4747'}  # Green for positive, red for negative
             
             bars = ax.bar(sentiment_counts.index, sentiment_counts.values, 
                          color=[colors[sentiment] for sentiment in sentiment_counts.index])
