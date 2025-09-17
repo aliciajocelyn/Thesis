@@ -6,7 +6,8 @@
 nlp-id==0.1.19.0
 
 # Essential ML and Data Science
-numpy==1.26.4
+# numpy==1.26.4
+numpy==2.0.2
 pandas==2.3.2
 scikit-learn==1.6.1
 
