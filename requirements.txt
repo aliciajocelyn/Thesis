@@ -91,8 +91,8 @@ threadpoolctl==3.6.0
 tokenizers==0.21.4
 toml==0.10.2
 tomli==2.2.1
-torch==2.2.2
-torchaudio==2.2.2
+torch==2.3.1
+torchaudio==2.3.1
 torchvision==0.17.2
 tornado==6.5.2
 tqdm==4.67.1
