@@ -1,0 +1,55 @@
+# Python cache & virtual env
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.log
+*.yaml
+*.yml
+
+# Virtual environment folders
+.env
+.venv
+env/
+venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Model files
+*.bin
+*.pt
+*.pth
+*.onnx
+
+# Hugging Face / Transformers cache
+*.tar.gz
+*.zip
+*.ckpt
+*.model
+*.pb
+*.params
+*.index
+*.data-00000-of-00001
+
+# BERTopic artifacts
+src/models/
+src/data/
+results/
+
+# IndoBERT model directories
+indobert_model/
+IndoBERT_model/
+
+# Datasets
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.parquet
+
+gitconfig.sh
