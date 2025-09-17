@@ -77,7 +77,7 @@ rpds-py==0.27.0
 safetensors==0.6.2
 Sastrawi==1.0.1
 scikit-learn==1.6.1
-scipy==1.13.1
+scipy==1.14.1
 sentence-transformers==5.0.0
 six==1.17.0
 smart_open==7.3.0.post1
