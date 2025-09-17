@@ -11,6 +11,7 @@ git config --global credential.helper store
 
 
 # Create a file to store the credentials
+echo "https://YOUR_USERNAME:YOUR_PERSONAL_ACCESS_TOKEN@github.com" > ~/.git-credentials
 
 
 # Make sure the .git-credentials file is properly protected
