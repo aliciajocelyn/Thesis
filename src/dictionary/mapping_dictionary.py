@@ -190,5 +190,5 @@ program_mapping = {
     r'\b(ekonomi)\b.*': 'Ilmu Ekonomi',
     r'\bteknik\b': "Teknik",
     r'\bsosiologi\b': "Sosiologi",
-    r'\b Master Track of Information Technology\b': 'Master Track of Information Technology'
+    r'\b Master Track of Information Technology\b': 'Master Track of Information Technology',
 }
