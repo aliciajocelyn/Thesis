@@ -1,72 +1,50 @@
-# Streamlit Deployment Requirements
-# Based on thesis_new conda environment
-# Install command: pip install -r requirements_streamlit.txt
+# Minimal Streamlit Deployment Requirements
+# Core packages only - tested for Python 3.10 compatibility
+# Install command: pip install -r requirements_minimal.txt
 
 # Core NLP Library
 nlp-id==0.1.19.0
 
-# Core ML and Data Science  
-# numpy==1.26.4
-numpy==2.0.2
+# Essential ML and Data Science
+numpy==1.26.4
 pandas==2.3.2
 scikit-learn==1.6.1
-scipy==1.15.3
-matplotlib==3.10.6
-seaborn==0.13.2
-plotly==6.3.0
 
-# Deep Learning and Transformers
+# Essential Deep Learning
 torch==2.2.2
-torchaudio==2.2.2
-torchvision==0.17.2
 transformers==4.56.1
 sentence-transformers==5.1.0
 tokenizers==0.22.0
-accelerate==1.10.1
 safetensors==0.6.2
-huggingface-hub==0.31.1
 
-# Topic Modeling
+# Topic Modeling (minimal set)
 bertopic==0.17.3
-gensim==4.3.3
-hdbscan==0.8.40
 umap-learn==0.5.9.post2
+hdbscan==0.8.40
 
-# NLP and Text Processing
+# NLP Processing
 nltk==3.9.1
-stanza==1.10.1
 Sastrawi==1.0.1
 regex==2024.11.6
 
 # Web Application
 streamlit==1.49.1
 
-# Visualization and Plotting
+# Visualization
 altair==5.5.0
 wordcloud==1.9.4
+matplotlib==3.10.6
 
-# Data Processing and I/O
-pyarrow==21.0.0
-openpyxl==3.1.5
-xlsxwriter==3.2.5
-
-# Utilities and Infrastructure
+# Essential utilities
 requests==2.32.5
 tqdm==4.67.1
-joblib==1.5.2
-filelock==3.19.1
-pyyaml==6.0.2
 
-# Additional dependencies
+# HuggingFace
+huggingface-hub==0.34.4
+
+# Basic dependencies
 certifi==2025.8.3
 charset-normalizer==3.4.3
-idna==3.10
 urllib3==2.5.0
 packaging==25.0
 pillow==11.3.0
-
-# HuggingFace Ecosystem  
-datasets==4.0.0
-
-# Python version requirement (for documentation)
-# python>=3.10,<3.11
