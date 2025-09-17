@@ -6,7 +6,7 @@
 nlp-id==0.1.20.0
 transformers==4.30.2
 sentence-transformers==2.2.2
-huggingface-hub==0.31.1
+huggingface-hub==0.34.4
 
 # Essential ML and Data Science
 # numpy==1.26.4
