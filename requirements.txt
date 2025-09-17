@@ -23,7 +23,7 @@ sentence-transformers==5.1.0
 tokenizers==0.22.0
 accelerate==1.10.1
 safetensors==0.6.2
-huggingface-hub==0.34.4
+huggingface-hub==0.31.1
 
 # Topic Modeling
 bertopic==0.17.3
