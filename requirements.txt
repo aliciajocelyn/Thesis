@@ -38,7 +38,6 @@ narwhals
 networkx
 nltk
 numba
-# numpy
 numpy
 openpyxl
 packaging
@@ -67,3 +66,4 @@ Sastrawi
 scikit-learn
 scipy
 torch
+wordcloud
