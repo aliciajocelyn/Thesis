@@ -125,7 +125,6 @@ with tab1:
 
     if students_experience is not None:
         df = pd.read_csv(students_experience)
-        df = df.drop(columns=['sentiment'], axis=1)
 
         if "text" in df.columns and df["text"].dropna().iloc[0] and isinstance(df["text"].dropna().iloc[0], str):
             st.session_state.uploaded_df = df['text']
