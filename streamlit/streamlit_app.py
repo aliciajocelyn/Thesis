@@ -182,8 +182,14 @@ with tab2:
         
         if set(df_labeled['sentiment'].unique()).issubset({0, 1}):
             df_labeled['sentiment'] = df_labeled['sentiment'].map({1: 'positive', 0: 'negative'})
-        
-        st.write(df_labeled.head(10))
+
+        df_labeled = df_labeled.drop(columns=['text'], axis=1)
+        df_labeled.rename(columns={'cleaned_text': 'text'}, inplace=True)
+        df_display = df_labeled[['text', 'sentiment']].head(10).reset_index(drop=True)
+        df_display.index = df_display.index + 1  
+
+        st.dataframe(df_display, use_container_width=True, height=300)
+
         sentiment_counts = df_labeled["sentiment"].value_counts(normalize=True)*100
         
         # Create a container to control chart width
