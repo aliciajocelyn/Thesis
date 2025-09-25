@@ -130,7 +130,7 @@ with tab1:
             st.session_state.uploaded_df = df['text']
             logger.info(f"Uploaded file: {students_experience.name}, Rows: {df.shape[0]}")
             st.subheader("📋 Preview of Uploaded Data")
-            st.write(df.head())
+            st.write(df['text'].head())
 
             if st.button("🔍 Run Sentiment Prediction"):
                 with st.spinner("Predicting sentiment..."):
