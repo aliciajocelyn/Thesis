@@ -16,7 +16,8 @@ from sentence_transformers import SentenceTransformer
 
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-import altair as alt
+import textwrap
+import io
 
 from utils.sentiment_prediction import *
 from utils.topic_prediction import *
@@ -70,6 +71,15 @@ def load_model():
             f"120inblue/topic-positive-model",
             embedding_model=embedding_model_positive
         )
+        positive_topic_names = {
+            -1: "Event dan Teman dari Organisasi Kampus (Outlier)",
+            0: "Lingkungan Kampus dan Dosen",
+            1: "Pertemanan, Relasi dan Koneksi",
+            2: "Kegiatan dan Belajar Bersama Teman",
+            3: "Program Magang dan Enrichment",
+            4: "Kegiatan dan Acara Kampus"
+        }
+        bertopic_model_positive.set_topic_labels(positive_topic_names)
         logger.info("✅ Positive BERTopic model loaded.")
 
         # ======================
@@ -82,6 +92,15 @@ def load_model():
             f"120inblue/topic-negative-model",
             embedding_model=embedding_model_negative
         )
+        negative_topic_names = {
+            -1: "Kualitas Fasilitas Kampus dan Pengajaran Dosen (Outlier)",
+            0: "Fasilitas Kampus: Wifi, Toilet, dan Infrastruktur",
+            1: "Relevansi Materi Kuliah dan Metode Pengajaran Dosen",
+            2: "Kebersihan dan Kelengkapan Fasilitas Toilet Kampus",
+            3: "Jadwal Kuliah Pagi dan Relevansi Mata Kuliah",
+            4: "Beban Tugas Mahasiswa"
+        }
+        bertopic_model_negative.set_topic_labels(negative_topic_names)
         logger.info("✅ Negative BERTopic model loaded.")
 
     except Exception as e:
@@ -184,15 +203,16 @@ with tab2:
         if set(df_labeled['sentiment'].unique()).issubset({0, 1}):
             df_labeled['sentiment'] = df_labeled['sentiment'].map({1: 'positive', 0: 'negative'})
         
-        st.write(df_labeled.head(10))
+        df_show = df_labeled[['text', 'sentiment']]
+        st.write(df_show.head(10))
         sentiment_counts = df_labeled["sentiment"].value_counts(normalize=True)*100
         
         # Create a container to control chart width
-        col1, col2, col3 = st.columns([1, 2, 1])  # This creates a centered chart taking 2/4 of the width
+        col1, col2, col3 = st.columns([1, 9, 1])  # This creates a centered chart taking 2/4 of the width
         
         with col2:
             # Create a custom bar chart with matplotlib
-            fig, ax = plt.subplots(figsize=(6, 5))  # Reduced figure size since it's in a smaller container
+            fig, ax = plt.subplots(figsize=(10, 4.5))  # Reduced figure size since it's in a smaller container
             
             # Define colors for sentiments
             colors = {'positive': '#91DA73', 'negative': '#FF4747'}  # Green for positive, red for negative
@@ -248,32 +268,37 @@ with tab3:
         topic_counts_pos = st.session_state.df_pred_positive['topic_name'].value_counts()
         pos_data = topic_counts_pos.reset_index()
         pos_data.columns = ['Topic Name', 'Count']
-        pos_chart = alt.Chart(pos_data).mark_bar().encode(
-            x=alt.X('Topic Name:N', axis=alt.Axis(
-                labelAngle=0,          
-                labelFontSize=20,      
-                labelLimit=0,          
-                labelOverlap=False,    
-                titleFontSize=18
-            )),
-            y='Count:Q'
-        ).properties(
-            width=600,
-            height=400
-        )
-        st.altair_chart(pos_chart, use_container_width=True)
 
-        col1, col2, col3 = st.columns([1, 2, 1]) 
+        # Wrap labels (2 rows max using \n)
+        pos_data['Topic Name Wrapped'] = pos_data['Topic Name'].apply(
+            lambda x: "\n".join(textwrap.wrap(x, width=20))  # adjust width as needed
+        )
+
+        fig_pos_bar, ax = plt.subplots(figsize=(10, 5))
+        ax.bar(pos_data['Topic Name Wrapped'], pos_data['Count'], color="skyblue")
+        ax.set_xlabel("Topic Name", fontsize=14)
+        ax.set_ylabel("Count", fontsize=14)
+        ax.set_title("Positive Sentiment Topics", fontsize=16)
+        ax.tick_params(axis='x', rotation=0, labelsize=10)
+        ax.tick_params(axis='y', labelsize=12)
+
+        col1, col2, col3 = st.columns([1,2,1])  # middle column is smaller
+        with col2:
+            st.pyplot(fig_pos_bar)
+
+
+        col1, col2, col3 = st.columns([0.5, 1, 0.5]) 
         with col2:
             selected_topic_pos = st.selectbox("Select a Positive Topic", options=topic_counts_pos.index)
-            selected_texts_pos = st.session_state.df_pred_positive[st.session_state.df_pred_positive['topic_name'] == selected_topic_pos]['text']
+            selected_texts_pos = st.session_state.df_pred_positive[
+                st.session_state.df_pred_positive['topic_name'] == selected_topic_pos]['text']
             processed_texts_pos = selected_texts_pos.apply(lambda x: text_preprocessing_topic(clean_text(x, negation=False)))
         
             fig_pos = generate_wordcloud(
                 processed_texts_pos,
                 f"Word Cloud for Positive Topic: {selected_topic_pos}"
             )
-            if fig_pos: st.pyplot(fig_pos)
+            if fig_pos: st.pyplot(fig_pos) 
 
         st.divider()
 
@@ -282,25 +307,27 @@ with tab3:
         topic_counts_neg = st.session_state.df_pred_negative['topic_name'].value_counts()
         neg_data = topic_counts_neg.reset_index()
         neg_data.columns = ['Topic Name', 'Count']
-        neg_chart = alt.Chart(neg_data).mark_bar().encode(
-            x=alt.X('Topic Name:N', axis=alt.Axis(
-                labelAngle=0,          
-                labelFontSize=20,      
-                labelLimit=0,          
-                labelOverlap=False,    
-                titleFontSize=18
-            )),
-            y='Count:Q'
-        ).properties(
-            width=600,
-            height=400
+
+        # Wrap labels
+        neg_data['Topic Name Wrapped'] = neg_data['Topic Name'].apply(
+            lambda x: "\n".join(textwrap.wrap(x, width=20))
         )
-        st.altair_chart(neg_chart, use_container_width=True)
-        
+
+        fig_neg_bar, ax = plt.subplots(figsize=(8, 3))
+        ax.bar(neg_data['Topic Name Wrapped'], neg_data['Count'], color="salmon")
+        ax.set_xlabel("Topic Name", fontsize=14)
+        ax.set_ylabel("Count", fontsize=14)
+        ax.set_title("Negative Sentiment Topics", fontsize=16)
+        ax.tick_params(axis='x', rotation=0, labelsize=10)
+        ax.tick_params(axis='y', labelsize=12)
+
+        st.pyplot(fig_neg_bar)
+
         col1, col2, col3 = st.columns([1, 2, 1])  
         with col2:
             selected_topic_neg = st.selectbox("Select a Negative Topic", options=topic_counts_neg.index)
-            selected_texts_neg = st.session_state.df_pred_negative[st.session_state.df_pred_negative['topic_name'] == selected_topic_neg]['text']
+            selected_texts_neg = st.session_state.df_pred_negative[
+                st.session_state.df_pred_negative['topic_name'] == selected_topic_neg]['text']
             processed_texts_neg = selected_texts_neg.apply(lambda x: text_preprocessing_topic(clean_text(x, negation=True)))
             fig_neg = generate_wordcloud(
                 processed_texts_neg,    
