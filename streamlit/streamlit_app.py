@@ -274,7 +274,7 @@ with tab3:
         )
 
         fig_pos_bar, ax = plt.subplots(figsize=(10, 5))
-        bars = ax.bar(pos_data['Topic Name Wrapped'], pos_data['Percentage'], color="skyblue")
+        bars = ax.bar(pos_data['Topic Name Wrapped'], pos_data['Percentage'], color="#91DA73")
 
         # Add percentage labels above bars
         for bar, pct in zip(bars, pos_data['Percentage']):
@@ -325,7 +325,7 @@ with tab3:
         )
 
         fig_neg_bar, ax = plt.subplots(figsize=(10, 5))
-        bars = ax.bar(neg_data['Topic Name Wrapped'], neg_data['Percentage'], color="salmon")
+        bars = ax.bar(neg_data['Topic Name Wrapped'], neg_data['Percentage'], color="#FF4747")
 
         # Add percentage labels
         for bar, pct in zip(bars, neg_data['Percentage']):
