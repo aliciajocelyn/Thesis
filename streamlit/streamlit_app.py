@@ -265,9 +265,9 @@ with tab3:
     if st.session_state.df_pred_positive is not None and st.session_state.df_pred_negative is not None:
         # Positive topics
         st.subheader("💬 Positive Sentiment Topics")
-        topic_counts_pos = st.session_state.df_pred_positive['topic_name'].value_counts()
+        topic_counts_pos = st.session_state.df_pred_positive['topic_name'].value_counts(normalize=True) * 100  # percentage
         pos_data = topic_counts_pos.reset_index()
-        pos_data.columns = ['Topic Name', 'Count']
+        pos_data.columns = ['Topic Name', 'Percentage']
 
         # Wrap labels (2 rows max using \n)
         pos_data['Topic Name Wrapped'] = pos_data['Topic Name'].apply(
@@ -275,9 +275,22 @@ with tab3:
         )
 
         fig_pos_bar, ax = plt.subplots(figsize=(10, 5))
-        ax.bar(pos_data['Topic Name Wrapped'], pos_data['Count'], color="skyblue")
+        bars = ax.bar(pos_data['Topic Name Wrapped'], pos_data['Percentage'], color="skyblue")
+
+        # Add percentage labels above bars
+        for bar, pct in zip(bars, pos_data['Percentage']):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 1,  # a little above the bar
+                f"{pct:.1f}%", ha='center', va='bottom', fontsize=12
+            )
+
+        # Adjust y-limit so labels fit
+        max_height = pos_data['Percentage'].max()
+        ax.set_ylim(0, max_height * 1.15)  # 15% extra margin
+
         ax.set_xlabel("Topic Name", fontsize=14)
-        ax.set_ylabel("Count", fontsize=14)
+        ax.set_ylabel("Percentage (%)", fontsize=14)
         ax.set_title("Positive Sentiment Topics", fontsize=16)
         ax.tick_params(axis='x', rotation=0, labelsize=10)
         ax.tick_params(axis='y', labelsize=12)
@@ -286,8 +299,7 @@ with tab3:
         with col2:
             st.pyplot(fig_pos_bar)
 
-
-        col1, col2, col3 = st.columns([0.5, 1, 0.5]) 
+        col1, col2, col3 = st.columns([1, 2, 1]) 
         with col2:
             selected_topic_pos = st.selectbox("Select a Positive Topic", options=topic_counts_pos.index)
             selected_texts_pos = st.session_state.df_pred_positive[
@@ -304,24 +316,40 @@ with tab3:
 
         # Negative topics
         st.subheader("💬 Negative Sentiment Topics")
-        topic_counts_neg = st.session_state.df_pred_negative['topic_name'].value_counts()
+        topic_counts_neg = st.session_state.df_pred_negative['topic_name'].value_counts(normalize=True) * 100
         neg_data = topic_counts_neg.reset_index()
-        neg_data.columns = ['Topic Name', 'Count']
+        neg_data.columns = ['Topic Name', 'Percentage']
 
         # Wrap labels
         neg_data['Topic Name Wrapped'] = neg_data['Topic Name'].apply(
             lambda x: "\n".join(textwrap.wrap(x, width=20))
         )
 
-        fig_neg_bar, ax = plt.subplots(figsize=(8, 3))
-        ax.bar(neg_data['Topic Name Wrapped'], neg_data['Count'], color="salmon")
+        fig_neg_bar, ax = plt.subplots(figsize=(10, 5))
+        bars = ax.bar(neg_data['Topic Name Wrapped'], neg_data['Percentage'], color="salmon")
+
+        # Add percentage labels
+        for bar, pct in zip(bars, neg_data['Percentage']):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 1,
+                f"{pct:.1f}%", ha='center', va='bottom', fontsize=12
+            )
+
+        # Adjust y-limit so labels fit
+        max_height = neg_data['Percentage'].max()
+        ax.set_ylim(0, max_height * 1.15)  # 15% extra margin
+
         ax.set_xlabel("Topic Name", fontsize=14)
-        ax.set_ylabel("Count", fontsize=14)
+        ax.set_ylabel("Percentage (%)", fontsize=14)
         ax.set_title("Negative Sentiment Topics", fontsize=16)
         ax.tick_params(axis='x', rotation=0, labelsize=10)
         ax.tick_params(axis='y', labelsize=12)
 
-        st.pyplot(fig_neg_bar)
+        col1, col2, col3 = st.columns([1,2,1])  
+        with col2:
+            st.pyplot(fig_neg_bar)
+
 
         col1, col2, col3 = st.columns([1, 2, 1])  
         with col2:
