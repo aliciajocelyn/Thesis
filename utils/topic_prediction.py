@@ -7,15 +7,18 @@ from src.dictionary.exclude_words import exclude_stopwords
 
 stopword = StopWord()
 tokenizer = Tokenizer()
+lemma = Lemmatizer()
 
 def clean_text(text, negation=True):
     if negation:
-        for phrase in ['sangat tidak menyukai', 'tidak menyukai','sangat tidak suka', 'tidak suka', 'kurang suka', 'kurang menyukai', 'ga suka', 'gak suka', 'ga menyukai', 'gak menyukai']:
+        for phrase in ['sangat tidak menyukai', 'tidak menyukai','sangat tidak suka', 'tidak suka', 'kurang suka', 'kurang menyukai', 'ga suka', 'gak suka', 'ga menyukai', 'gak menyukai', 'ga', 'gada']:
             text = text.replace(phrase, '')
 
     for phrase in ['suka', 'sangat suka', 'menyukai', 'sangat menyukai']:
         text = text.replace(phrase, '')
 
+    text = re.sub(r"[^a-zA-Z\s']", ' ', text)
+    text = text.replace("ga", "")
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
@@ -96,3 +99,11 @@ def predict_topics(texts, df, model, sentiment_label):
     )
 
     return df_pred
+
+def clean_text_topic_for_wordcloud(text, negation=False):
+    text = clean_text(text, negation=negation)
+    text = text_preprocessing_topic(text)
+    
+    exclude_words = ["lemot", "ga", "gak", "gada", "nya", "yg", "aja", "banget"]
+    text = " ".join([lemma.lemmatize(word) for word in text.split() if word not in exclude_words])
+    return text

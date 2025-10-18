@@ -6,18 +6,20 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from pathlib import Path
 import os
 import logging
-from datetime import datetime
+import time
 import streamlit as st
 import pandas as pd
 
-from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
 
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import textwrap
-import io
+from collections import Counter
+import re
+import random
 
 from utils.sentiment_prediction import *
 from utils.topic_prediction import *
@@ -25,15 +27,10 @@ from utils.topic_prediction import *
 # ======================
 # LOGGING CONFIGURATION
 # ======================
-LOG_DIR = Path(__file__).parent / "logs"
-LOG_DIR.mkdir(exist_ok=True)
-LOG_FILE = LOG_DIR / f"app_{datetime.now().strftime('%Y%m%d_%H%M')}.log"
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
     handlers=[
-        logging.FileHandler(LOG_FILE, encoding="utf-8"),
         logging.StreamHandler()
     ]
 )
@@ -53,7 +50,7 @@ def load_model():
         # SENTIMENT ANALYSIS
         # ======================
         indobert_model = AutoModelForSequenceClassification.from_pretrained(
-            "120inblue/sentiment-indobert",   # replace with your HF repo
+            "120inblue/sentiment-indobert",   
             trust_remote_code=True
         )
         tokenizer = AutoTokenizer.from_pretrained(
@@ -112,25 +109,74 @@ def load_model():
 
 indobert_model, tokenizer, bertopic_model_positive, bertopic_model_negative = load_model()
 
-def generate_wordcloud(texts, title):
+def plot_top5_words(processed_texts, title, color, width=6, height=4):
+    all_words = []
+    for text in processed_texts:
+        if isinstance(text, str) and text.strip():
+            words = [word for word in text.split() if re.match(r'^[a-zA-Z]{2,}$', word)]
+            all_words.extend(words)
+    
+    if not all_words:
+        return None
+    
+    word_counts = Counter(all_words)
+    top_5 = word_counts.most_common(5)
+    
+    if not top_5:
+        return None
+    
+    words, counts = zip(*top_5)
+    
+    fig, ax = plt.subplots(figsize=(width, height))
+    bars = ax.barh(words, counts, color=color)
+    
+    for bar, count in zip(bars, counts):
+        ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2, 
+                str(count), va='center', fontsize=10)
+    
+    ax.set_xlabel('Frequency', fontsize=11)
+    ax.set_ylabel('Words', fontsize=11)
+    ax.set_title(title, fontsize=12)
+    ax.invert_yaxis() 
+    plt.tight_layout()
+    return fig
+
+
+def generate_wordcloud(texts, title, width=800, height=350, top_k=10):
     combined_text = " ".join(texts)
     if not combined_text.strip():
         return None
-    wc = WordCloud(width=800, height=400, background_color="white").generate(combined_text)
-    fig, ax = plt.subplots(figsize=(6, 4))
+
+    freqs = Counter(combined_text.split())
+    top_k_words = set([w for w, _ in freqs.most_common(top_k)])
+
+    def color_func(word, font_size, position, orientation, random_state=None, **kwargs):
+        if word in top_k_words:
+            return f"hsl({random.randint(0, 360)}, 100%, 40%)"
+        else:
+            return f"hsl({random.randint(0, 360)}, 30%, 70%)"
+
+    wc = WordCloud(
+        width=width, 
+        height=height, 
+        background_color="white",
+        color_func=color_func
+    ).generate(combined_text)
+
+    fig, ax = plt.subplots(figsize=(width/100, height/100))
     ax.imshow(wc, interpolation="bilinear")
     ax.axis("off")
     ax.set_title(title)
     return fig
 
+
 # ======================
 # STREAMLIT UI
 # ======================
-st.set_page_config(page_title="🎓 Student Review Analyzer", layout="wide")
-st.title("🎓 Sentiment Analysis on Student Reviews in Higher Education")
+st.set_page_config(page_title="🎓 Student Review Analyzer", layout="centered", initial_sidebar_state="auto")
+st.title("🎓 Sentiment Analysis on Student Reviews in Higher Education", width=2500)
 st.caption("Upload reviews → Analyze sentiment → Explore topics")
 
-# State initialization
 for key in ["df_labeled", "df_pred_positive", "df_pred_negative", "uploaded_df"]:
     if key not in st.session_state:
         st.session_state[key] = None
@@ -140,7 +186,7 @@ tab1, tab2, tab3 = st.tabs(["📁 Upload Data", "📊 Sentiment Results", "💡 
 # ==== TAB 1: UPLOAD & ANALYSIS ====
 with tab1:
     st.header("Step 1: Upload CSV")
-    students_experience = st.file_uploader("Choose a CSV file", type="csv")
+    students_experience = st.file_uploader("Choose a CSV file", type="csv", help="CSV must contain a 'text' column.")
 
     if students_experience is not None:
         df = pd.read_csv(students_experience)
@@ -149,48 +195,62 @@ with tab1:
             st.session_state.uploaded_df = df['text']
             logger.info(f"Uploaded file: {students_experience.name}, Rows: {df.shape[0]}")
             st.subheader("📋 Preview of Uploaded Data")
-            st.write(df['text'].head())
+            st.write(f"Uploaded {df.shape[0]} rows")
+            st.dataframe(
+                df[['text']],
+                use_container_width=True, 
+                hide_index=True, 
+                height=400,
+                column_config={
+                    "text": st.column_config.TextColumn(
+                        "text",
+                        help="Student review text, double click to view the full text",
+                    )
+                }
+            )
 
-            if st.button("🔍 Run Sentiment Prediction"):
-                with st.spinner("Predicting sentiment..."):
+            if st.button("Run Prediction", icon="🔍"):
+                with st.spinner("Predicting student's sentiment..."):
                     try:
-                        # sample_df = df.sample(n=min(10, len(df)), random_state=42)
+                        start_time = time.time()
                         df_labeled = predict_sentiment(df, indobert_model, tokenizer)
+                        end_time = time.time()
+                        logger.info(f"Sentiment prediction completed in {end_time - start_time:.2f} seconds")
                         st.session_state.df_labeled = df_labeled
                         logger.info("Sentiment prediction completed.")
-                        st.success("✅ Sentiment prediction complete! Go to **Tab 2** to view results.")
+                        st.success("✅ Sentiment prediction complete! Go to **Sentiment Results Tab** to view results.")
                     except Exception as e:
                         logger.exception("Error during sentiment prediction")
                         st.error(f"Error: {e}")
-
-            if st.session_state.df_labeled is not None and st.button("💡 Run Topic Prediction"):
-                with st.spinner("Running topic modeling..."):
-                    try:
-                        texts_pos, texts_neg = prepare_dataset(st.session_state.df_labeled)
-                        
-                        df_pred_positive = predict_topics(
-                            texts=texts_pos, 
-                            df=st.session_state.df_labeled,
-                            model=bertopic_model_positive, 
-                            sentiment_label=1
-                        )
-                        df_pred_negative = predict_topics(
-                            texts=texts_neg, 
-                            df=st.session_state.df_labeled,
-                            model=bertopic_model_negative, 
-                            sentiment_label=0
-                        )
-
-                        st.session_state.df_pred_positive = df_pred_positive
-                        st.session_state.df_pred_negative = df_pred_negative
-                        logger.info("Topic prediction completed.")
-                        st.success("✅ Topic prediction complete! Go to **Tab 3** to view results.")
-                    except Exception as e:
-                        logger.exception("Error during topic prediction")
-                        st.error(f"Error: {e}")
+                if st.session_state.df_labeled is not None:
+                    with st.spinner("Predicting topics..."):
+                        try:
+                            start_time = time.time()
+                            texts_pos, texts_neg = prepare_dataset(st.session_state.df_labeled)
+                            
+                            df_pred_positive = predict_topics(
+                                texts=texts_pos, 
+                                df=st.session_state.df_labeled,
+                                model=bertopic_model_positive, 
+                                sentiment_label=1
+                            )
+                            df_pred_negative = predict_topics(
+                                texts=texts_neg, 
+                                df=st.session_state.df_labeled,
+                                model=bertopic_model_negative, 
+                                sentiment_label=0
+                            )
+                            end_time = time.time()
+                            logger.info(f"Topic prediction completed in {end_time - start_time:.2f} seconds")
+                            st.session_state.df_pred_positive = df_pred_positive
+                            st.session_state.df_pred_negative = df_pred_negative
+                            logger.info("Topic prediction completed.")
+                            st.success("✅ Topic prediction complete! Go to **Topic Results Tab** to view results.")
+                        except Exception as e:
+                            logger.exception("Error during topic prediction")
+                            st.error(f"Error: {e}")
         else:
             st.error("❗ Make sure the uploaded CSV contains a 'text' column with valid strings.")
-
 
 
 # ==== TAB 2: SENTIMENT RESULTS ====
@@ -203,57 +263,96 @@ with tab2:
             df_labeled['sentiment'] = df_labeled['sentiment'].map({1: 'positive', 0: 'negative'})
         
         df_show = df_labeled[['text', 'sentiment']]
-        st.write(df_show.head(10))
+        st.dataframe(
+            df_show, 
+            use_container_width=True, 
+            hide_index=True, 
+            height=300,
+            column_config={
+                "text": st.column_config.TextColumn(
+                    "Text",
+                    width=370,
+                    help="Student review text, double click to view the full text"
+                ),
+                "sentiment": st.column_config.TextColumn(
+                    "Sentiment",
+                    width=10
+                )
+            }
+        )
+        st.download_button(
+            label="💾 Download Labeled Data as CSV",
+            data=df_labeled[['text', 'sentiment']].to_csv(index=False),
+            file_name="labeled_reviews.csv",
+            mime="text/csv",
+            key="download_labeled_data_button",
+            help="Download the labeled dataframe as CSV"
+        )
+        
         sentiment_counts = df_labeled["sentiment"].value_counts(normalize=True)*100
-        
-        # Create a container to control chart width
-        col1, col2, col3 = st.columns([1, 9, 1])  # This creates a centered chart taking 2/4 of the width
-        
+        col1, col2, col3 = st.columns([1, 12, 1]) 
         with col2:
-            # Create a custom bar chart with matplotlib
-            fig, ax = plt.subplots(figsize=(10, 4.5))  # Reduced figure size since it's in a smaller container
-            
-            # Define colors for sentiments
-            colors = {'positive': '#91DA73', 'negative': '#FF4747'}  # Green for positive, red for negative
+            fig, ax = plt.subplots(figsize=(8, 6)) 
+            colors = {'positive': '#91DA73', 'negative': '#FF4747'}
             
             bars = ax.bar(sentiment_counts.index, sentiment_counts.values, 
-                         color=[colors[sentiment] for sentiment in sentiment_counts.index])
+                            color=[colors[sentiment] for sentiment in sentiment_counts.index])
             
-            # Add percentage labels on top of bars
             for bar, value in zip(bars, sentiment_counts.values):
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, 
-                       f'{value:.2f}%', ha='center', va='bottom', fontsize=12, fontweight='bold')
+                        f'{value:.2f}%', ha='center', va='bottom', fontsize=12, fontweight='bold')
             
-            # Customize the chart
             ax.set_ylim(0, 100) 
-            ax.set_ylabel('Proportion', fontsize=12)
-            ax.set_xlabel('Sentiment', fontsize=12)
+            ax.set_ylabel('Proportion', fontsize=10)
+            ax.set_xlabel('Sentiment', fontsize=10)
             ax.set_title('Sentiment Distribution', fontsize=14, fontweight='bold')
-            
-            # Make x-axis labels horizontal and larger
             ax.tick_params(axis='x', labelsize=14, rotation=0)
             ax.tick_params(axis='y', labelsize=10)
-            
             plt.tight_layout()
             st.pyplot(fig)
 
         df_positive = df_labeled[df_labeled["sentiment"] == 'positive']
         df_negative = df_labeled[df_labeled["sentiment"] == 'negative']
 
+        df_positive['cleaned_text'] = df_positive['text'].apply(lambda x: clean_text(x, negation=False))
+        df_positive['processed_text'] = df_positive['cleaned_text'].apply(lambda x: text_preprocessing_sentiment(x, method='sastrawi'))
+        
+        df_negative['cleaned_text'] = df_negative['text'].apply(lambda x: clean_text(x, negation=False))
+        df_negative['processed_text'] = df_negative['cleaned_text'].apply(lambda x: text_preprocessing_sentiment(x, method='sastrawi'))
+
+        st.markdown("<h4 style='text-align: center; color: white;'>Positive Sentiment Analysis</h4>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
-            df_positive['cleaned_text'] = df_positive['text'].apply(lambda x: clean_text(x, negation=False))
-            df_positive['processed_text'] = df_positive['cleaned_text'].apply(lambda x: text_preprocessing_sentiment(x, method='sastrawi'))
-            pos_fig = generate_wordcloud(df_positive["processed_text"], "Positive Reviews Word Cloud")
-            if pos_fig: st.pyplot(pos_fig)
-            else: st.info("No positive reviews found.")
-
+            pos_wc = generate_wordcloud(df_positive["processed_text"], "Word Cloud", width=800, height=500)
+            if pos_wc: 
+                st.pyplot(pos_wc)
+            else: 
+                st.info("No positive reviews found.")
+        
         with col2:
-            df_negative['cleaned_text'] = df_negative['text'].apply(lambda x: clean_text(x, negation=False))
-            df_negative['processed_text'] = df_negative['cleaned_text'].apply(lambda x: text_preprocessing_sentiment(x, method='sastrawi'))
-            neg_fig = generate_wordcloud(df_negative["processed_text"], "Negative Reviews Word Cloud")
-            if neg_fig: st.pyplot(neg_fig)
-            else: st.info("No negative reviews found.")
+            pos_top5 = plot_top5_words(df_positive["processed_text"], "Top 5 Words", "#91DA73")
+            if pos_top5:
+                st.pyplot(pos_top5)
+            else:
+                st.info("No positive reviews found.")
+
+        st.divider()
+
+        st.markdown("<h4 style='text-align: center; color: white;'>Negative Sentiment Analysis</h4>", unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            neg_wc = generate_wordcloud(df_negative["processed_text"], "Word Cloud", width=800, height=500)
+            if neg_wc:
+                st.pyplot(neg_wc)
+            else:
+                st.info("No negative reviews found.")
+        
+        with col2:
+            neg_top5 = plot_top5_words(df_negative["processed_text"], "Top 5 Words", "#FF4747")
+            if neg_top5:
+                st.pyplot(neg_top5)
+            else:
+                st.info("No negative reviews found.")
     else:
         st.warning("⚠ Please run sentiment prediction in Tab 1.")
 
@@ -262,31 +361,27 @@ with tab2:
 with tab3:
     st.header("Topic Analysis per Sentiment")
     if st.session_state.df_pred_positive is not None and st.session_state.df_pred_negative is not None:
-        # Positive topics
         st.subheader("💬 Positive Sentiment Topics")
-        topic_counts_pos = st.session_state.df_pred_positive['topic_name'].value_counts(normalize=True) * 100  # percentage
+        topic_counts_pos = st.session_state.df_pred_positive['topic_name'].value_counts(normalize=True) * 100
         pos_data = topic_counts_pos.reset_index()
         pos_data.columns = ['Topic Name', 'Percentage']
 
-        # Wrap labels (2 rows max using \n)
         pos_data['Topic Name Wrapped'] = pos_data['Topic Name'].apply(
-            lambda x: "\n".join(textwrap.wrap(x, width=20))  # adjust width as needed
+            lambda x: "\n".join(textwrap.wrap(x, width=20))
         )
 
         fig_pos_bar, ax = plt.subplots(figsize=(10, 5))
         bars = ax.bar(pos_data['Topic Name Wrapped'], pos_data['Percentage'], color="#91DA73")
 
-        # Add percentage labels above bars
         for bar, pct in zip(bars, pos_data['Percentage']):
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + 1,  # a little above the bar
+                bar.get_height() + 1,
                 f"{pct:.1f}%", ha='center', va='bottom', fontsize=12
             )
 
-        # Adjust y-limit so labels fit
         max_height = pos_data['Percentage'].max()
-        ax.set_ylim(0, max_height * 1.15)  # 15% extra margin
+        ax.set_ylim(0, max_height * 1.15)
 
         ax.set_xlabel("Topic Name", fontsize=14)
         ax.set_ylabel("Percentage (%)", fontsize=14)
@@ -294,32 +389,38 @@ with tab3:
         ax.tick_params(axis='x', rotation=0, labelsize=10)
         ax.tick_params(axis='y', labelsize=12)
 
-        col1, col2, col3 = st.columns([1,2,1])  # middle column is smaller
-        with col2:
-            st.pyplot(fig_pos_bar)
+        st.pyplot(fig_pos_bar)
 
-        col1, col2, col3 = st.columns([1, 2, 1]) 
-        with col2:
-            selected_topic_pos = st.selectbox("Select a Positive Topic", options=topic_counts_pos.index)
-            selected_texts_pos = st.session_state.df_pred_positive[
-                st.session_state.df_pred_positive['topic_name'] == selected_topic_pos]['text']
-            processed_texts_pos = selected_texts_pos.apply(lambda x: text_preprocessing_topic(clean_text(x, negation=False)))
+        selected_topic_pos = st.selectbox("Select a Positive Topic", options=topic_counts_pos.index)
+        col1, col2 = st.columns(2)
         
+        selected_texts_pos = st.session_state.df_pred_positive[
+            st.session_state.df_pred_positive['topic_name'] == selected_topic_pos]['text']
+        # cleaned_texts_pos = selected_texts_pos.apply(lambda x: clean_text(x, negation=False))
+        # processed_texts_pos = cleaned_texts_pos.apply(text_preprocessing_topic)
+        processed_texts_pos = selected_texts_pos.apply(lambda x: clean_text_topic_for_wordcloud(x, negation=False))
+        
+        with col1: 
             fig_pos = generate_wordcloud(
                 processed_texts_pos,
-                f"Word Cloud for Positive Topic: {selected_topic_pos}"
+                f"Word Cloud for Positive Topic: {selected_topic_pos}",
+                width=800,
+                height=500
+
             )
             if fig_pos: st.pyplot(fig_pos) 
-
+        with col2:
+            fig_top5_pos = plot_top5_words(processed_texts_pos, f"Top 5 Words for Positive Topic: {selected_topic_pos}", color="#74b8ff")
+            if fig_top5_pos: 
+                st.pyplot(fig_top5_pos)
+        
         st.divider()
 
-        # Negative topics
         st.subheader("💬 Negative Sentiment Topics")
         topic_counts_neg = st.session_state.df_pred_negative['topic_name'].value_counts(normalize=True) * 100
         neg_data = topic_counts_neg.reset_index()
         neg_data.columns = ['Topic Name', 'Percentage']
 
-        # Wrap labels
         neg_data['Topic Name Wrapped'] = neg_data['Topic Name'].apply(
             lambda x: "\n".join(textwrap.wrap(x, width=20))
         )
@@ -327,7 +428,6 @@ with tab3:
         fig_neg_bar, ax = plt.subplots(figsize=(10, 5))
         bars = ax.bar(neg_data['Topic Name Wrapped'], neg_data['Percentage'], color="#FF4747")
 
-        # Add percentage labels
         for bar, pct in zip(bars, neg_data['Percentage']):
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
@@ -335,9 +435,8 @@ with tab3:
                 f"{pct:.1f}%", ha='center', va='bottom', fontsize=12
             )
 
-        # Adjust y-limit so labels fit
         max_height = neg_data['Percentage'].max()
-        ax.set_ylim(0, max_height * 1.15)  # 15% extra margin
+        ax.set_ylim(0, max_height * 1.15)
 
         ax.set_xlabel("Topic Name", fontsize=14)
         ax.set_ylabel("Percentage (%)", fontsize=14)
@@ -345,21 +444,49 @@ with tab3:
         ax.tick_params(axis='x', rotation=0, labelsize=10)
         ax.tick_params(axis='y', labelsize=12)
 
-        col1, col2, col3 = st.columns([1,2,1])  
-        with col2:
-            st.pyplot(fig_neg_bar)
-
-
-        col1, col2, col3 = st.columns([1, 2, 1])  
-        with col2:
-            selected_topic_neg = st.selectbox("Select a Negative Topic", options=topic_counts_neg.index)
-            selected_texts_neg = st.session_state.df_pred_negative[
-                st.session_state.df_pred_negative['topic_name'] == selected_topic_neg]['text']
-            processed_texts_neg = selected_texts_neg.apply(lambda x: text_preprocessing_topic(clean_text(x, negation=True)))
+        st.pyplot(fig_neg_bar)
+        selected_topic_neg = st.selectbox("Select a Negative Topic", options=topic_counts_neg.index)
+        col1, col2 = st.columns(2)
+        
+        selected_texts_neg = st.session_state.df_pred_negative[
+            st.session_state.df_pred_negative['topic_name'] == selected_topic_neg]['text']
+        # cleaned_texts_neg = selected_texts_neg.apply(lambda x: clean_text(x, negation=True))
+        # processed_texts_neg = cleaned_texts_neg.apply(text_preprocessing_topic)
+        processed_texts_neg = selected_texts_neg.apply(lambda x: clean_text_topic_for_wordcloud(x, negation=True))
+        
+        with col1: 
             fig_neg = generate_wordcloud(
-                processed_texts_neg,    
-                f"Word Cloud for Negative Topic: {selected_topic_neg}"
+                processed_texts_neg,
+                f"Word Cloud for Negative Topic: {selected_topic_neg}",
+                width=800,
+                height=500
             )
-            if fig_neg: st.pyplot(fig_neg)
-    else:
-        st.warning("⚠ Please run topic prediction in Tab 1.")
+            if fig_neg: st.pyplot(fig_neg) 
+        with col2:
+            fig_top5_neg = plot_top5_words(processed_texts_neg, f"Top 5 Words for Negative Topic: {selected_topic_neg}", color="#74b8ff")
+            if fig_top5_neg: 
+                st.pyplot(fig_top5_neg)
+
+    st.divider()
+    st.markdown("<h4 style='text-align: center; color: white;'>Download All Texts with Sentiment and Topics</h4>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 5, 1])
+    with col2: 
+        if st.session_state.df_pred_positive is not None and st.session_state.df_pred_negative is not None:
+            all_df = pd.concat([st.session_state.df_pred_positive, st.session_state.df_pred_negative], axis=0, ignore_index=True)
+            all_df["sentiment"] = all_df["sentiment"].map({1: "positive", 0: "negative"})
+            relevant_columns = [col for col in ['text', 'sentiment', 'topic_name'] if col in all_df.columns]
+            if relevant_columns:
+                download_df = all_df[relevant_columns]
+            else:
+                download_df = all_df
+            csv_bytes = download_df.to_csv(index=False).encode('utf-8')
+            btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
+            with btn_col2:
+                st.download_button(
+                    label="📥 Download All Results as CSV",
+                    data=csv_bytes,
+                    file_name="predicted_results.csv",
+                    mime="text/csv"
+                )
+        else:
+            st.warning("⚠ Please run topic prediction in Tab 1.")
