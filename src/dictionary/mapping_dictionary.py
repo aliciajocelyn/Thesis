@@ -1,10 +1,8 @@
 university_mapping = {
+    # BINUS
     r'\b(bin(us)?|sunib)\b.*': 'Universitas Bina Nusantara',
     'kemanggisan': 'Universitas Bina Nusantara',
     'alam sutera': 'Universitas Bina Nusantara',
-    'malang': 'Universitas Bina Nusantara',
-
-    # BINUS
     r'\b(binus|sunib|bina\s*nusantara)\b.*': 'Universitas Bina Nusantara',
 
     # UPH
