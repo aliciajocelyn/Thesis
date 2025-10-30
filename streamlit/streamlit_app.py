@@ -173,8 +173,8 @@ def generate_wordcloud(texts, title, width=800, height=350, top_k=10):
 # ======================
 # STREAMLIT UI
 # ======================
-st.set_page_config(page_title="🎓 Student Review Analyzer", layout="centered", initial_sidebar_state="auto")
-st.title("🎓 Sentiment Analysis on Student Reviews in Higher Education", width=2500)
+st.set_page_config(page_title="🎓 Student Review Analyzer", layout="wide", initial_sidebar_state="auto")
+st.title("🎓 Sentiment Analysis on Student Reviews in Higher Education")
 st.caption("Upload reviews → Analyze sentiment → Explore topics")
 
 for key in ["df_labeled", "df_pred_positive", "df_pred_negative", "uploaded_df"]:
@@ -467,8 +467,8 @@ with tab3:
             if fig_top5_neg: 
                 st.pyplot(fig_top5_neg)
 
-    st.divider()
-    st.markdown("<h4 style='text-align: center; color: white;'>Download All Texts with Sentiment and Topics</h4>", unsafe_allow_html=True)
+        st.divider()
+        st.markdown("<h4 style='text-align: center; color: white;'>Download All Texts with Sentiment and Topics</h4>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 5, 1])
     with col2: 
         if st.session_state.df_pred_positive is not None and st.session_state.df_pred_negative is not None:

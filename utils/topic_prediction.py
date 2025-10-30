@@ -104,6 +104,4 @@ def clean_text_topic_for_wordcloud(text, negation=False):
     text = clean_text(text, negation=negation)
     text = text_preprocessing_topic(text)
     
-    exclude_words = ["lemot", "ga", "gak", "gada", "nya", "yg", "aja", "banget"]
-    text = " ".join([lemma.lemmatize(word) for word in text.split() if word not in exclude_words])
     return text
