@@ -1,5 +1,4 @@
 import re
-from nlp_id.lemmatizer import Lemmatizer
 from nlp_id.tokenizer import Tokenizer
 from nlp_id.stopword import StopWord
 
@@ -7,34 +6,37 @@ from src.dictionary.exclude_words import exclude_stopwords
 
 stopword = StopWord()
 tokenizer = Tokenizer()
-lemma = Lemmatizer()
 
 def clean_text(text, negation=True):
     if negation:
-        for phrase in ['sangat tidak menyukai', 'tidak menyukai','sangat tidak suka', 'tidak suka', 'kurang suka', 'kurang menyukai', 'ga suka', 'gak suka', 'ga menyukai', 'gak menyukai', 'ga', 'gada']:
+        for phrase in [
+            'sangat tidak menyukai', 'tidak menyukai', 'sangat tidak suka',
+            'tidak suka', 'kurang suka', 'kurang menyukai', 'ga suka',
+            'gak suka', 'ga menyukai', 'gak menyukai', 'gada'
+        ]:
             text = text.replace(phrase, '')
 
     for phrase in ['suka', 'sangat suka', 'menyukai', 'sangat menyukai']:
         text = text.replace(phrase, '')
 
     text = re.sub(r"[^a-zA-Z\s']", ' ', text)
-    text = text.replace("ga", "")
+
+    # Remove only standalone 'ga'
+    text = re.sub(r'\bga\b', '', text)
+
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
-def text_preprocessing_topic(text):
-    # Menambahkan kata untuk stop words
-    stop_words = stopword.get_stopword()
-    stop_words.append(exclude_stopwords)
 
+def text_preprocessing_topic(text): 
+    stopwords = stopword.get_stopword()
+    stopwords.append(exclude_stopwords)
     tokens = tokenizer.tokenize(text)
-    filtered_tokens = [word for word in tokens if word not in stop_words]
-
+    filtered_tokens = [word for word in tokens if word not in stopwords]
     text = re.sub(r'\s+', ' ', text).strip()
-
     processed_text = " ".join(filtered_tokens)
-
     return processed_text
+
 
 def prepare_dataset(df_modeling):
     df_modeling['sentiment'] = df_modeling['sentiment'].map({'negative': 0, 'positive': 1})
@@ -100,8 +102,9 @@ def predict_topics(texts, df, model, sentiment_label):
 
     return df_pred
 
+
 def clean_text_topic_for_wordcloud(text, negation=False):
-    text = clean_text(text, negation=negation)
+    text = clean_text(text, negation=False)
     text = text_preprocessing_topic(text)
-    
+
     return text

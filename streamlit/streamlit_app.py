@@ -9,6 +9,7 @@ import logging
 import time
 import streamlit as st
 import pandas as pd
+import altair as alt
 
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from bertopic import BERTopic
@@ -290,35 +291,70 @@ with tab2:
         )
         
         sentiment_counts = df_labeled["sentiment"].value_counts(normalize=True)*100
+        sentiment_raw_counts = df_labeled["sentiment"].value_counts()
+        
+        st.subheader("📈 Sentiment Distribution")
+        chart_data = pd.DataFrame({
+            'sentiment': sentiment_counts.index,
+            'percentage': sentiment_counts.values,
+            'count': sentiment_raw_counts.values
+        })
+        
+        # Add percentage label with % symbol for text display
+        chart_data['percentage_label'] = chart_data['percentage'].apply(lambda x: f'{x:.2f}%')
+        
+        # Define color mapping
+        color_scale = alt.Scale(
+            domain=['positive', 'negative'],
+            range=['#90E8A6', '#e87b7d']
+        )
+        
+        # Create Altair chart
+        chart = alt.Chart(chart_data).mark_bar().encode(
+            x=alt.X('sentiment:N', 
+                    title='Sentiment',
+                    axis=alt.Axis(labelFontSize=18, titleFontSize=20)),
+            y=alt.Y('percentage:Q', 
+                    title='Proportion (%)',
+                    scale=alt.Scale(domain=[0, 100]),
+                    axis=alt.Axis(labelFontSize=18, tickCount=11, tickMinStep=10, titleFontSize=20)),
+            color=alt.Color('sentiment:N', 
+                           scale=color_scale,
+                           legend=None),
+            tooltip=[
+                alt.Tooltip('sentiment:N', title='Sentiment'),
+                alt.Tooltip('percentage:Q', title='Percentage', format='.2f'),
+                alt.Tooltip('count:Q', title='Count')
+            ]
+        ).properties(
+            width=500,
+            height=700,
+        )
+        
+        # Add text labels on top of bars with % symbol
+        text = chart.mark_text(
+            align='center',
+            baseline='bottom',
+            dy=-5,
+            fontSize=15,
+            fontWeight='bold'
+        ).encode(
+            text=alt.Text('percentage_label:N')
+        )
+        
         col1, col2, col3 = st.columns([1, 12, 1]) 
+        
         with col2:
-            fig, ax = plt.subplots(figsize=(8, 6)) 
-            colors = {'positive': '#91DA73', 'negative': '#FF4747'}
-            
-            bars = ax.bar(sentiment_counts.index, sentiment_counts.values, 
-                            color=[colors[sentiment] for sentiment in sentiment_counts.index])
-            
-            for bar, value in zip(bars, sentiment_counts.values):
-                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, 
-                        f'{value:.2f}%', ha='center', va='bottom', fontsize=12, fontweight='bold')
-            
-            ax.set_ylim(0, 100) 
-            ax.set_ylabel('Proportion', fontsize=10)
-            ax.set_xlabel('Sentiment', fontsize=10)
-            ax.set_title('Sentiment Distribution', fontsize=14, fontweight='bold')
-            ax.tick_params(axis='x', labelsize=14, rotation=0)
-            ax.tick_params(axis='y', labelsize=10)
-            plt.tight_layout()
-            st.pyplot(fig)
+            st.altair_chart(chart + text, use_container_width=True)
 
         df_positive = df_labeled[df_labeled["sentiment"] == 'positive']
         df_negative = df_labeled[df_labeled["sentiment"] == 'negative']
 
         df_positive['cleaned_text'] = df_positive['text'].apply(lambda x: clean_text(x, negation=False))
-        df_positive['processed_text'] = df_positive['cleaned_text'].apply(lambda x: text_preprocessing_sentiment(x, method='sastrawi'))
-        
-        df_negative['cleaned_text'] = df_negative['text'].apply(lambda x: clean_text(x, negation=False))
-        df_negative['processed_text'] = df_negative['cleaned_text'].apply(lambda x: text_preprocessing_sentiment(x, method='sastrawi'))
+        df_negative['cleaned_text'] = df_negative['text'].apply(lambda x: clean_text(x, negation=True))
+
+        df_positive['processed_text'] = df_positive['cleaned_text'].apply(lambda x: text_preprocessing_topic(x))
+        df_negative['processed_text'] = df_negative['cleaned_text'].apply(lambda x: text_preprocessing_topic(x))
 
         st.markdown("<h4 style='text-align: center; color: white;'>Positive Sentiment Analysis</h4>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
@@ -362,42 +398,43 @@ with tab3:
     st.header("Topic Analysis per Sentiment")
     if st.session_state.df_pred_positive is not None and st.session_state.df_pred_negative is not None:
         st.subheader("💬 Positive Sentiment Topics")
-        topic_counts_pos = st.session_state.df_pred_positive['topic_name'].value_counts(normalize=True) * 100
-        pos_data = topic_counts_pos.reset_index()
-        pos_data.columns = ['Topic Name', 'Percentage']
+        col1, col2, col3 = st.columns([1, 4, 1])
+        with col2:
+            topic_counts_pos = st.session_state.df_pred_positive['topic_name'].value_counts(normalize=True) * 100
+            pos_data = topic_counts_pos.reset_index()
+            pos_data.columns = ['Topic Name', 'Percentage']
 
-        pos_data['Topic Name Wrapped'] = pos_data['Topic Name'].apply(
-            lambda x: "\n".join(textwrap.wrap(x, width=20))
-        )
-
-        fig_pos_bar, ax = plt.subplots(figsize=(10, 5))
-        bars = ax.bar(pos_data['Topic Name Wrapped'], pos_data['Percentage'], color="#91DA73")
-
-        for bar, pct in zip(bars, pos_data['Percentage']):
-            ax.text(
-                bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + 1,
-                f"{pct:.1f}%", ha='center', va='bottom', fontsize=12
+            pos_data['Topic Name Wrapped'] = pos_data['Topic Name'].apply(
+                lambda x: "\n".join(textwrap.wrap(x, width=20))
             )
 
-        max_height = pos_data['Percentage'].max()
-        ax.set_ylim(0, max_height * 1.15)
+            fig_pos_bar, ax = plt.subplots(figsize=(10, 5))
+            bars = ax.bar(pos_data['Topic Name Wrapped'], pos_data['Percentage'], color="#91DA73")
 
-        ax.set_xlabel("Topic Name", fontsize=14)
-        ax.set_ylabel("Percentage (%)", fontsize=14)
-        ax.set_title("Positive Sentiment Topics", fontsize=16)
-        ax.tick_params(axis='x', rotation=0, labelsize=10)
-        ax.tick_params(axis='y', labelsize=12)
+            for bar, pct in zip(bars, pos_data['Percentage']):
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 1,
+                    f"{pct:.1f}%", ha='center', va='bottom', fontsize=12
+                )
 
-        st.pyplot(fig_pos_bar)
+            max_height = pos_data['Percentage'].max()
+            ax.set_ylim(0, max_height * 1.15)
+
+            ax.set_xlabel("Topic Name", fontsize=14)
+            ax.set_ylabel("Percentage (%)", fontsize=14)
+            ax.set_title("Positive Sentiment Topics", fontsize=16)
+            ax.tick_params(axis='x', rotation=0, labelsize=10)
+            ax.tick_params(axis='y', labelsize=12)
+
+            st.pyplot(fig_pos_bar)
 
         selected_topic_pos = st.selectbox("Select a Positive Topic", options=topic_counts_pos.index)
         col1, col2 = st.columns(2)
         
         selected_texts_pos = st.session_state.df_pred_positive[
             st.session_state.df_pred_positive['topic_name'] == selected_topic_pos]['text']
-        # cleaned_texts_pos = selected_texts_pos.apply(lambda x: clean_text(x, negation=False))
-        # processed_texts_pos = cleaned_texts_pos.apply(text_preprocessing_topic)
+
         processed_texts_pos = selected_texts_pos.apply(lambda x: clean_text_topic_for_wordcloud(x, negation=False))
         
         with col1: 
@@ -417,41 +454,42 @@ with tab3:
         st.divider()
 
         st.subheader("💬 Negative Sentiment Topics")
-        topic_counts_neg = st.session_state.df_pred_negative['topic_name'].value_counts(normalize=True) * 100
-        neg_data = topic_counts_neg.reset_index()
-        neg_data.columns = ['Topic Name', 'Percentage']
+        col1, col2, col3 = st.columns([1, 4, 1])
+        with col2:
+            topic_counts_neg = st.session_state.df_pred_negative['topic_name'].value_counts(normalize=True) * 100
+            neg_data = topic_counts_neg.reset_index()
+            neg_data.columns = ['Topic Name', 'Percentage']
 
-        neg_data['Topic Name Wrapped'] = neg_data['Topic Name'].apply(
-            lambda x: "\n".join(textwrap.wrap(x, width=20))
-        )
-
-        fig_neg_bar, ax = plt.subplots(figsize=(10, 5))
-        bars = ax.bar(neg_data['Topic Name Wrapped'], neg_data['Percentage'], color="#FF4747")
-
-        for bar, pct in zip(bars, neg_data['Percentage']):
-            ax.text(
-                bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + 1,
-                f"{pct:.1f}%", ha='center', va='bottom', fontsize=12
+            neg_data['Topic Name Wrapped'] = neg_data['Topic Name'].apply(
+                lambda x: "\n".join(textwrap.wrap(x, width=20))
             )
 
-        max_height = neg_data['Percentage'].max()
-        ax.set_ylim(0, max_height * 1.15)
+            fig_neg_bar, ax = plt.subplots(figsize=(10, 5))
+            bars = ax.bar(neg_data['Topic Name Wrapped'], neg_data['Percentage'], color="#FF4747")
 
-        ax.set_xlabel("Topic Name", fontsize=14)
-        ax.set_ylabel("Percentage (%)", fontsize=14)
-        ax.set_title("Negative Sentiment Topics", fontsize=16)
-        ax.tick_params(axis='x', rotation=0, labelsize=10)
-        ax.tick_params(axis='y', labelsize=12)
+            for bar, pct in zip(bars, neg_data['Percentage']):
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 1,
+                    f"{pct:.1f}%", ha='center', va='bottom', fontsize=12
+                )
 
-        st.pyplot(fig_neg_bar)
+            max_height = neg_data['Percentage'].max()
+            ax.set_ylim(0, max_height * 1.15)
+
+            ax.set_xlabel("Topic Name", fontsize=14)
+            ax.set_ylabel("Percentage (%)", fontsize=14)
+            ax.set_title("Negative Sentiment Topics", fontsize=16)
+            ax.tick_params(axis='x', rotation=0, labelsize=10)
+            ax.tick_params(axis='y', labelsize=12)
+
+            st.pyplot(fig_neg_bar)
+
         selected_topic_neg = st.selectbox("Select a Negative Topic", options=topic_counts_neg.index)
         col1, col2 = st.columns(2)
         
         selected_texts_neg = st.session_state.df_pred_negative[
             st.session_state.df_pred_negative['topic_name'] == selected_topic_neg]['text']
-        # cleaned_texts_neg = selected_texts_neg.apply(lambda x: clean_text(x, negation=True))
-        # processed_texts_neg = cleaned_texts_neg.apply(text_preprocessing_topic)
         processed_texts_neg = selected_texts_neg.apply(lambda x: clean_text_topic_for_wordcloud(x, negation=True))
         
         with col1: 
