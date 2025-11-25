@@ -506,25 +506,27 @@ with tab3:
                 st.pyplot(fig_top5_neg)
 
         st.divider()
-        st.markdown("<h4 style='text-align: center; color: white;'>Download All Texts with Sentiment and Topics</h4>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 5, 1])
-    with col2: 
-        if st.session_state.df_pred_positive is not None and st.session_state.df_pred_negative is not None:
-            all_df = pd.concat([st.session_state.df_pred_positive, st.session_state.df_pred_negative], axis=0, ignore_index=True)
-            all_df["sentiment"] = all_df["sentiment"].map({1: "positive", 0: "negative"})
-            relevant_columns = [col for col in ['text', 'sentiment', 'topic_name'] if col in all_df.columns]
-            if relevant_columns:
-                download_df = all_df[relevant_columns]
-            else:
-                download_df = all_df
-            csv_bytes = download_df.to_csv(index=False).encode('utf-8')
-            btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
-            with btn_col2:
-                st.download_button(
-                    label="📥 Download All Results as CSV",
-                    data=csv_bytes,
-                    file_name="predicted_results.csv",
-                    mime="text/csv"
-                )
+        
+    st.markdown("<h4 style='text-align: center; color: white;'>Download All Texts with Sentiment and Topics</h4>", unsafe_allow_html=True)
+    
+    if st.session_state.df_pred_positive is not None and st.session_state.df_pred_negative is not None:
+        all_df = pd.concat([st.session_state.df_pred_positive, st.session_state.df_pred_negative], axis=0, ignore_index=True)
+        all_df["sentiment"] = all_df["sentiment"].map({1: "positive", 0: "negative"})
+        relevant_columns = [col for col in ['text', 'sentiment', 'topic_name'] if col in all_df.columns]
+        if relevant_columns:
+            download_df = all_df[relevant_columns]
         else:
-            st.warning("⚠ Please run topic prediction in Tab 1.")
+            download_df = all_df
+        csv_bytes = download_df.to_csv(index=False).encode('utf-8')
+        
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            st.download_button(
+                label="📥 Download All Results as CSV",
+                data=csv_bytes,
+                file_name="predicted_results.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+    else:
+        st.warning("⚠ Please run topic prediction in Tab 1.")
