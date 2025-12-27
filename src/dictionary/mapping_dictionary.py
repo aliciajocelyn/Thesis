@@ -3,6 +3,7 @@ university_mapping = {
     r'\b(bin(us)?|sunib)\b.*': 'Universitas Bina Nusantara',
     'kemanggisan': 'Universitas Bina Nusantara',
     'alam sutera': 'Universitas Bina Nusantara',
+    'malang': 'Universitas Bina Nusantara',
     r'\b(binus|sunib|bina\s*nusantara)\b.*': 'Universitas Bina Nusantara',
 
     # UPH
@@ -188,5 +189,5 @@ program_mapping = {
     r'\b(ekonomi)\b.*': 'Ilmu Ekonomi',
     r'\bteknik\b': "Teknik",
     r'\bsosiologi\b': "Sosiologi",
-    r'\b Master Track of Information Technology\b': 'Master Track of Information Technology',
+    r'\bMaster Track of Information Technology\b': 'Master Track of Information Technology',
 }
