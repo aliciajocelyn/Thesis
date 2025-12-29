@@ -1,6 +1,5 @@
 import sys
 import os
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from pathlib import Path
@@ -22,8 +21,14 @@ from collections import Counter
 import re
 import random
 
-from utils.sentiment_prediction import *
-from utils.topic_prediction import *
+from utils.sentiment_prediction import predict_sentiment
+from utils.topic_prediction import (
+    clean_text,
+    text_preprocessing_topic,
+    prepare_dataset, 
+    predict_topics, 
+    clean_text_topic_for_wordcloud
+)
 
 # ======================
 # LOGGING CONFIGURATION
@@ -36,7 +41,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # ======================
@@ -59,9 +63,9 @@ def load_model():
         )
         logger.info("✅ IndoBERT sentiment model loaded.")
 
-        # ======================
+        # =========================
         # TOPIC MODELING (POSITIVE)
-        # ======================
+        # =========================
         embedding_model_positive = SentenceTransformer(
             f"120inblue/topic-positive-embeddings"
         )
@@ -70,7 +74,7 @@ def load_model():
             embedding_model=embedding_model_positive
         )
         positive_topic_names = {
-            -1: "Event dan Teman dari Organisasi Kampus (Outlier)",
+            -1: "Event dan Teman dari Organisasi Kampus",
             0: "Lingkungan Kampus dan Dosen",
             1: "Pertemanan, Relasi dan Koneksi",
             2: "Kegiatan dan Belajar Bersama Teman",
@@ -91,7 +95,7 @@ def load_model():
             embedding_model=embedding_model_negative
         )
         negative_topic_names = {
-            -1: "Kualitas Fasilitas Kampus dan Pengajaran Dosen (Outlier)",
+            -1: "Kualitas Fasilitas Kampus dan Pengajaran Dosen",
             0: "Fasilitas Kampus: Wifi, Toilet, dan Infrastruktur",
             1: "Relevansi Materi Kuliah dan Metode Pengajaran Dosen",
             2: "Kebersihan dan Kelengkapan Fasilitas Toilet Kampus",
@@ -105,10 +109,8 @@ def load_model():
         logger.error(f"❌ Failed to load one of the models: {e}")
         raise
 
-    logger.info("🎉 All models loaded successfully from Hugging Face Hub.")
+    logger.info("All models loaded successfully from Hugging Face Hub.")
     return indobert_model, tokenizer, bertopic_model_positive, bertopic_model_negative
-
-indobert_model, tokenizer, bertopic_model_positive, bertopic_model_negative = load_model()
 
 def plot_top5_words(processed_texts, title, color, width=6, height=4):
     all_words = []
@@ -127,10 +129,8 @@ def plot_top5_words(processed_texts, title, color, width=6, height=4):
         return None
     
     words, counts = zip(*top_5)
-    
     fig, ax = plt.subplots(figsize=(width, height))
     bars = ax.barh(words, counts, color=color)
-    
     for bar, count in zip(bars, counts):
         ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2, 
                 str(count), va='center', fontsize=10)
@@ -170,6 +170,9 @@ def generate_wordcloud(texts, title, width=800, height=350, top_k=10):
     ax.set_title(title)
     return fig
 
+
+# Load model
+indobert_model, tokenizer, bertopic_model_positive, bertopic_model_negative = load_model()
 
 # ======================
 # STREAMLIT UI
@@ -300,16 +303,12 @@ with tab2:
             'count': sentiment_raw_counts.values
         })
         
-        # Add percentage label with % symbol for text display
         chart_data['percentage_label'] = chart_data['percentage'].apply(lambda x: f'{x:.2f}%')
-        
-        # Define color mapping
         color_scale = alt.Scale(
             domain=['positive', 'negative'],
             range=['#90E8A6', '#e87b7d']
         )
         
-        # Create Altair chart
         chart = alt.Chart(chart_data).mark_bar().encode(
             x=alt.X('sentiment:N', 
                     title='Sentiment',
@@ -331,7 +330,6 @@ with tab2:
             height=700,
         )
         
-        # Add text labels on top of bars with % symbol
         text = chart.mark_text(
             align='center',
             baseline='bottom',
