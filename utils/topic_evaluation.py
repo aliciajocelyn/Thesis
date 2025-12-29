@@ -8,32 +8,29 @@ from gensim.utils import simple_preprocess
 from gensim import corpora
 
 def calculate_coherence_score(texts, all_topics, coherence_types=None, print_results=False):
-  coherence_types = ['c_v', 'u_mass', 'c_uci', 'c_npmi']
-  
-  tokenized_docs = [simple_preprocess(doc) for doc in texts]
+    if coherence_types is None:
+        coherence_types = ['c_v', 'u_mass', 'c_uci', 'c_npmi']
 
-  # Build dictionary and corpus
-  dictionary = corpora.Dictionary(tokenized_docs)
-  corpus = [dictionary.doc2bow(text) for text in tokenized_docs]
+    tokenized_docs = [simple_preprocess(doc) for doc in texts]
+    dictionary = corpora.Dictionary(tokenized_docs)
+    corpus = [dictionary.doc2bow(text) for text in tokenized_docs]
 
-  scores = {}
+    scores = {}
+    for coherence in coherence_types:
+        cm = CoherenceModel(
+            topics=all_topics,
+            texts=tokenized_docs,
+            corpus=corpus,
+            dictionary=dictionary,
+            coherence=coherence
+        )
+        scores[coherence] = round(cm.get_coherence(), 3)
 
-  # Compute all coherence types
-  for coherence in coherence_types:
-      model = CoherenceModel(
-          topics=all_topics,
-          texts=tokenized_docs,
-          corpus=corpus,
-          dictionary=dictionary,
-          coherence=coherence
-      )
-      scores[coherence] = round(model.get_coherence(), 3)
+    if print_results:
+        for metric, score in scores.items():
+            print(f"Coherence ({metric}): {score}")
 
-  if print_results:
-    for metric, score in scores.items():
-      print(f"{metric}: {score}")
-      
-  return scores
+    return scores
 
 def calculate_irbo(all_topics, topk=10, print_results=False):
     """
@@ -59,31 +56,30 @@ def calculate_irbo(all_topics, topk=10, print_results=False):
       
     return irbo_score
 
-def evaluate_topics(texts, topic_model, coherence_types=None, topk=10):
-    coherence_types=['c_v', 'u_mass', 'c_uci', 'c_npmi']
-  
-    # Tokenized text for coherence
-    tokenized_docs = [simple_preprocess(doc) for doc in texts]
-    dictionary = corpora.Dictionary(tokenized_docs)
-    corpus = [dictionary.doc2bow(text) for text in tokenized_docs]
+def evaluate_topics(texts, topic_model, coherence_types=None, topk=10, print_results=True):
+    if coherence_types is None:
+        coherence_types = ['c_v', 'u_mass', 'c_uci', 'c_npmi']
 
-    # Get all topic words
-    all_topics = [ [word for word, _ in topic_model.get_topic(topic_id)[:topk]]
-                   for topic_id in topic_model.get_topics().keys()
-                   if topic_id != -1 and topic_model.get_topic(topic_id) is not None ]
+    all_topics = []
+    for topic_id in topic_model.get_topics().keys():
+        if topic_id == -1:
+            continue
+        topic = topic_model.get_topic(topic_id)
+        if topic:
+            all_topics.append([word for word, _ in topic[:topk]])
 
-    # Topic Coherence
-    coherence_scores = {}
-    for ctype in coherence_types:
-        cm = CoherenceModel(topics=all_topics, texts=tokenized_docs, corpus=corpus, dictionary=dictionary, coherence=ctype)
-        coherence_scores[ctype] = round(cm.get_coherence(), 3)
+    coherence_scores = calculate_coherence_score(
+        texts=texts,
+        all_topics=all_topics,
+        coherence_types=coherence_types,
+        print_results=False
+    )
 
-    # Topic Diversity (IRBO)
     irbo_score = calculate_irbo(all_topics, topk=topk)
 
-    # Print all
-    for ctype, score in coherence_scores.items():
-        print(f"Coherence ({ctype}): {score}")
-    print(f"IRBO Topic Diversity: {irbo_score}")
+    if print_results:
+        for ctype, score in coherence_scores.items():
+            print(f"Coherence ({ctype}): {score}")
+        print(f"IRBO Topic Diversity: {irbo_score}")
 
     return coherence_scores, irbo_score

@@ -7,23 +7,24 @@ from src.dictionary.exclude_words import exclude_stopwords
 stopword = StopWord()
 tokenizer = Tokenizer()
 
+negation_phrases = [
+    'sangat tidak menyukai', 'tidak menyukai', 'sangat tidak suka',
+    'tidak suka', 'kurang suka', 'kurang menyukai', 'ga suka',
+    'gak suka', 'ga menyukai', 'gak menyukai', 'gada'
+]
+
+positive_phrases = ['suka', 'sangat suka', 'menyukai', 'sangat menyukai']
+
 def clean_text(text, negation=True):
     if negation:
-        for phrase in [
-            'sangat tidak menyukai', 'tidak menyukai', 'sangat tidak suka',
-            'tidak suka', 'kurang suka', 'kurang menyukai', 'ga suka',
-            'gak suka', 'ga menyukai', 'gak menyukai', 'gada'
-        ]:
+        for phrase in negation_phrases:
             text = text.replace(phrase, '')
 
-    for phrase in ['suka', 'sangat suka', 'menyukai', 'sangat menyukai']:
+    for phrase in positive_phrases:
         text = text.replace(phrase, '')
 
     text = re.sub(r"[^a-zA-Z\s']", ' ', text)
-
-    # Remove only standalone 'ga'
     text = re.sub(r'\bga\b', '', text)
-
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
