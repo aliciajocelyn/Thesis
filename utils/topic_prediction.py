@@ -55,6 +55,31 @@ def prepare_dataset(df_modeling):
 
     return text_pos, text_neg
 
+# Topic name mappings
+POSITIVE_TOPIC_MAPPING = {
+    "0_teman_kampus_dosen_materi": "Lingkungan Kampus & Dosen",
+    "2_bareng_belajar_teman_ujian": "Kegiatan dan Belajar Bersama Teman", 
+    "1_bertemu_teman_orang_koneksi": "Pertemanan, Relasi dan Koneksi",
+    "-1_event_teman_organisasi_kampus": "Event dan Teman dari Organisasi Kampus",
+    "4_kegiatan_program_acara_seru": "Kegiatan & Acara Kampus",
+    "3_program_mahasiswa_magang_enrichment": "Program Magang & Enrichment"
+}
+
+NEGATIVE_TOPIC_MAPPING = {
+    "0_kampus_wifi_fasilitas_toilet": "Fasilitas Kampus: Wifi, Toilet, dan Infrastruktur",
+    "1_dosen_materi_mahasiswa_mengajar": "Relevansi Materi Kuliah dan Metode Pengajaran Dosen",
+    "-1_fasilitas_kampus_dosen_kuliah": "Kualitas Fasilitas Kampus dan Pengajaran Dosen",
+    "2_toilet_tissue_fasilitas_tangan": "Kebersihan dan Kelengkapan Fasilitas Toilet Kampus",
+    "3_kuliah_mata_pagi_jam": "Jadwal Kuliah Pagi dan Relevansi Mata Kuliah",
+    "4_tugas_ubah_menumpuk_bersamaan": "Beban Tugas Mahasiswa"
+}
+
+def map_topic_names(topic_name, sentiment_label):
+    """Map auto-generated topic names to custom names based on sentiment"""
+    if sentiment_label == 1:  # Positive sentiment
+        return POSITIVE_TOPIC_MAPPING.get(topic_name, topic_name)
+    else:  # Negative sentiment  
+        return NEGATIVE_TOPIC_MAPPING.get(topic_name, topic_name)
 
 def predict_topics(texts, df, model, sentiment_label):
     topics, probs = model.transform(texts)
@@ -70,5 +95,17 @@ def predict_topics(texts, df, model, sentiment_label):
         right_on='Topic',
         how='left'
     ).drop(columns=["Topic"]).rename(columns={"Name": "topic_name"})
+    
+    # Apply custom topic name mapping
+    df_pred['topic_name'] = df_pred['topic_name'].apply(
+        lambda x: map_topic_names(x, sentiment_label)
+    )
 
     return df_pred
+
+
+def clean_text_topic_for_wordcloud(text, negation=False):
+    text = clean_text(text, negation=False)
+    text = text_preprocessing_topic(text)
+
+    return text

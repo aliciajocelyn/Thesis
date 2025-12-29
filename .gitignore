@@ -52,4 +52,4 @@ IndoBERT_model/
 *.xls
 *.parquet
 
-gitconfig.sh.DS_Store
+gitconfig.sh
