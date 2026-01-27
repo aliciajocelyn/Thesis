@@ -18,15 +18,19 @@ class TextCleansing:
         self.norm_dict = norm_dict if norm_dict else {}
         self.exclude_stopwords = exclude_stopwords if exclude_stopwords else []
 
-        self.tokenizer = Tokenizer()
+        self.tokenizer = None
+        self.stopword = None
+        self.stopword_list = []
+
         try:
+            self.tokenizer = Tokenizer()
             self.stopword = StopWord()
             stopword_list = self.stopword.get_stopword()
             self.stopword_list = list(stopword_list) if stopword_list else []
             self.stopword_list.extend(add_stopwords)
         except Exception as e:
-            self.stopword = None
-            self.stopword_list = list(add_stopwords) if add_stopwords else []
+            print("Error initializing tokenizer/stopword:", e)
+
 
     def correct_typos(self, text):
         for typo, correction in self.norm_dict.items():
