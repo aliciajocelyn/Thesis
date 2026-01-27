@@ -3,7 +3,13 @@ import numpy as np
 import torch
 
 from src.dictionary.normalization_dictionary import norm_dict
+# from src.models.preprocess.text_cleansing import TextCleansing
+import inspect
 from src.models.preprocess.text_cleansing import TextCleansing
+
+print("TextCleansing loaded from:", inspect.getfile(TextCleansing))
+
+
 
 # Label mapping
 id2label = {0: "negative", 1: "positive"}
