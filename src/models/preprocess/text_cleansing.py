@@ -18,9 +18,13 @@ class TextCleansing:
         self.norm_dict = norm_dict if norm_dict else {}
         self.exclude_stopwords = exclude_stopwords if exclude_stopwords else []
 
-        self.tokenizer = None
-        self.stopword = None
-        self.stopword_list = []
+        # self.tokenizer = None
+        # self.stopword = None
+        # self.stopword_list = []
+            # Use setattr to ensure attributes are set
+        setattr(self, 'tokenizer', None)
+        setattr(self, 'stopword', None)
+        setattr(self, 'stopword_list', [])
 
         try:
             self.tokenizer = Tokenizer()
