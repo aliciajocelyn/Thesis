@@ -19,16 +19,17 @@ class TextCleansing:
         self.exclude_stopwords = exclude_stopwords if exclude_stopwords else []
 
         self.tokenizer = Tokenizer()
+        self.stopword = StopWord()
         self.stopword_list = self.stopword.get_stopword()
-        self.stopword_list.append(add_stopwords)
+        self.stopword_list.extend(add_stopwords)  # Use extend() to add items, not append() which adds the list itself
         
 
     def correct_typos(self, text):
         for typo, correction in self.norm_dict.items():
-            clean_text = re.sub(
+            text = re.sub(
                 rf'\b{typo}\b', correction, text, flags=re.IGNORECASE
             )
-        return clean_text
+        return text
     
     def reduce_extra_characters(self, text):
         """
@@ -60,7 +61,7 @@ class TextCleansing:
         else:
             for phrase in positive_phrases:
                 self.text = self.text.replace(phrase, '')
-        text = re.sub(r"[^a-zA-Z\s']", ' ', text)
+        text = re.sub(r"[^a-zA-Z\s']", ' ', self.text)
         text = re.sub(r'\bga\b', '', text)
         return re.sub(r'\s+', ' ', text).strip()
     
@@ -71,7 +72,8 @@ class TextCleansing:
             for word in tokens 
             if word not in self.stopword_list or word in self.exclude_stopwords
         ]
-        return " ".join(re.sub(r'\s+', ' ', processed_tokens).strip())
+        processed_text = " ".join(processed_tokens)
+        return re.sub(r'\s+', ' ', processed_text).strip()
 
     def clean(self):
         text = self.text.lower()
