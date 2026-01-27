@@ -249,6 +249,8 @@ with tab1:
                             st.session_state.df_pred_positive = df_pred_positive
                             st.session_state.df_pred_negative = df_pred_negative
                             logger.info("Topic prediction completed.")
+                            st.write("Preview of positive predictions:")
+                            st.dataframe(df_pred_positive.head(2), use_container_width=True, hide_index=True)
                             st.success("✅ Topic prediction complete! Go to **Topic Results Tab** to view results.")
                         except Exception as e:
                             logger.exception("Error during topic prediction")

@@ -2,9 +2,9 @@ import re
 from src.dictionary.exclude_words import exclude_stopwords
 from src.models.preprocess.text_cleansing import TextCleansing
 
-def clean_text(text):
+def clean_text(text, negation=False):
     tc = TextCleansing(text, exclude_stopwords)
-    return tc.clean_text_topic()
+    return tc.clean_text_topic(negation)
 
 def text_preprocessing_topic(text):
     tc = TextCleansing(text, exclude_stopwords)
@@ -56,7 +56,7 @@ def predict_topics(texts, df, model, sentiment_label):
 
 
 def clean_text_topic_for_wordcloud(text, negation=False):
-    text = clean_text(text, negation=False)
+    text = clean_text(text, negation=negation)
     text = text_preprocessing_topic(text)
 
     return text
