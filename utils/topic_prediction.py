@@ -2,13 +2,15 @@ import re
 from src.dictionary.exclude_words import exclude_stopwords
 from src.models.preprocess.text_cleansing import TextCleansing
 
+_text_cleaner = TextCleansing("", exclude_stopwords)
+
 def clean_text(text, negation=False):
-    tc = TextCleansing(text, exclude_stopwords)
-    return tc.clean_text_topic(negation)
+    _text_cleaner.text = text  
+    return _text_cleaner.clean_text_topic(negation)
 
 def text_preprocessing_topic(text):
-    tc = TextCleansing(text, exclude_stopwords)
-    return tc.text_preprocessing_topic()
+    _text_cleaner.text = text  
+    return _text_cleaner.text_preprocessing_topic()
 
 def prepare_dataset(df_modeling):
     df_modeling['sentiment'] = df_modeling['sentiment'].map({'negative': 0, 'positive': 1})

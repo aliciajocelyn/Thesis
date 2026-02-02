@@ -12,24 +12,20 @@ negation_phrases = [
 
 positive_phrases = ['suka', 'sangat suka', 'menyukai', 'sangat menyukai']
 
+# At the TOP of the file (module level, loaded once)
+_shared_tokenizer = Tokenizer()
+_shared_stopword = StopWord()
+_shared_stopword_list = list(_shared_stopword.get_stopword())
+
 class TextCleansing:
     def __init__(self, text, norm_dict=None, exclude_stopwords=None, add_stopwords=['nya', 'ya', 'nih']):
         self.text = text
         self.norm_dict = norm_dict if norm_dict else {}
         self.exclude_stopwords = exclude_stopwords if exclude_stopwords else []
 
-        self.tokenizer = None
-        self.stopword = None
-        self.stopword_list = []
-
-        try:
-            self.tokenizer = Tokenizer()
-            self.stopword = StopWord()
-            stopword_list = self.stopword.get_stopword()
-            self.stopword_list = list(stopword_list) if stopword_list else []
-            self.stopword_list.extend(add_stopwords)
-        except Exception as e:
-            print("Error initializing tokenizer/stopword:", e)
+        self.tokenizer = _shared_tokenizer
+        self.stopword = _shared_stopword
+        self.stopword_list = _shared_stopword_list.copy()
 
 
     def correct_typos(self, text):
